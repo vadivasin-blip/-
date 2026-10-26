@@ -217,7 +217,7 @@
 
     .raster img { display: block; width: 100%; height: 100%; user-select: none; }
     /* Края снимка растворяются в цвете воды — без видимой рамки */
-    #baseLayer {
+    .raster {
       -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
       -webkit-mask-composite: source-in;
       mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
@@ -425,6 +425,28 @@
     }
 
     .search input:not(:placeholder-shown) ~ .kbd { display: none; }
+
+    /* Переключатель карт: Россия / Европа */
+    .maps-nav { display: flex; align-items: center; gap: 4px; flex-shrink: 0; height: 52px; padding: 4px; border-radius: 18px; }
+
+    .maps-nav a {
+      display: flex;
+      align-items: center;
+      height: 42px;
+      padding: 0 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-soft);
+      text-decoration: none;
+      border-radius: 14px;
+      transition: color 0.2s ease, background 0.25s ease, transform 0.25s var(--spring);
+    }
+
+    .maps-nav a:hover { color: var(--text); background: var(--line); }
+    .maps-nav a:active { transform: scale(0.94); }
+    .maps-nav a[aria-current="page"] { color: #fff; background: var(--grad); box-shadow: 0 6px 18px -6px var(--accent-glow); }
+    .maps-nav a:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
+    .maps-nav .short { display: none; }
 
     .results {
       position: absolute;
@@ -1060,6 +1082,10 @@
       .search { max-width: none; }
       .search input { height: 48px; }
       .kbd { display: none; }
+      .maps-nav { height: 48px; }
+      .maps-nav a { height: 38px; padding: 0 10px; }
+      .maps-nav .full { display: none; }
+      .maps-nav .short { display: inline; }
 
       .filters {
         top: 66px;
@@ -1179,6 +1205,11 @@
       <span class="kbd" aria-hidden="true">/</span>
       <ul class="results glass" id="results" role="listbox"></ul>
     </div>
+
+    <nav class="maps-nav glass reveal" style="--i:2" aria-label="Карты">
+      <a href="russia-map.html" aria-current="page"><span class="full">Россия</span><span class="short">RU</span></a>
+      <a href="europe-map.html"><span class="full">Европа</span><span class="short">EU</span></a>
+    </nav>
   </header>
 
   <!-- Фильтр по населению -->
@@ -1833,8 +1864,9 @@
       const right = cw - (isMobile() ? 0 : p.r - 24), bottom = ch - (isMobile() ? p.b - 16 : 0);
       const boxes = [];
       const out = [];
+      const left = isMobile() ? 0 : 76;     // не прячем подписи под колонкой кнопок
       const fits = (b) => {
-        if (b[0] < 0 || b[1] < 0 || b[2] > right || b[3] > bottom) return false;
+        if (b[0] < left || b[1] < 0 || b[2] > right || b[3] > bottom) return false;
         for (const o of boxes) if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return false;
         return true;
       };
