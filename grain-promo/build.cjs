@@ -229,7 +229,6 @@ const html = `<!doctype html>
   <div class="copy">${beatHtml}
   </div>
 </div>
-<audio src="media/voice.wav" data-at="0" data-voice></audio>
 <audio src="media/music.wav" data-at="0" data-fade-in="0.5" data-fade-out="1.2"></audio>
 <script src="lib/gsap.min.js"></script>
 <script src="lib/CustomEase.min.js"></script>
