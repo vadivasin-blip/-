@@ -25,8 +25,8 @@ const BEATS = [
   { id: 'b4', at: 10.55, out: 13.85, kick: { a: 'управление', b: 'A4', c: '04 / 08' }[S], title: 'Перемотка по кругу', sub: 'громкость — поворотной ручкой' },
   { id: 'b5', at: 14.0, out: 18.45, kick: { a: 'полка', b: 'B1', c: '05 / 08' }[S], title: 'Конверты и стороны A/B', sub: 'альбомы лежат как пластинки' },
   { id: 'b6', at: 18.6, out: 20.85, kick: { a: 'текст', b: 'B2', c: '06 / 08' }[S], title: 'Текст по словам', sub: 'караоке в такт песне' },
-  { id: 'b7', at: 21.0, out: 26.85, kick: { a: 'зимняя тема', b: 'B3', c: '07 / 08' }[S], title: 'Зимняя тема', chips: [['снег', 21.95], ['гирлянда', 22.5], ['сугроб', 23.15], ['пауза — снег замирает', 23.9], ['салют', 25.2]] },
-  { id: 'b8', at: 27.15, out: null, kick: { a: 'для Windows', b: 'B4', c: '08 / 08' }[S], title: 'Grain', sub: 'музыка, которую видно', big: true, final: true },
+  { id: 'b7', at: 21.0, out: 26.6, kick: { a: 'зимняя тема', b: 'B3', c: '07 / 08' }[S], title: 'Зимняя тема', chips: [['снег', 21.95], ['гирлянда', 22.5], ['сугроб', 23.15], ['пауза — снег замирает', 23.9], ['салют', 25.2]] },
+  { id: 'b8', at: 27.2, out: null, kick: { a: 'для Windows', b: 'B4', c: '08 / 08' }[S], title: 'Grain', sub: 'музыка, которую видно', big: true, final: true },
 ];
 
 // Кадрирование интерфейса внутри окна: [время, fx, fy, zoom] — точка интерфейса 1920×1080 в центре окна.
@@ -156,7 +156,7 @@ M.start(({ tl }) => {
   });
   // окно: влёт и финальный уход
   tl.fromTo('.frame', { y: 140, scale: 0.86, autoAlpha: 0 }, { y: 0, scale: 1, autoAlpha: 1, duration: 0.9, ease: 'expo.out' }, 0.55);
-  tl.to('.frame', { y: 60, scale: 0.9, autoAlpha: 0, duration: 0.6, ease: 'power3.in' }, 26.95);
+  tl.to('.frame', { y: 60, scale: 0.9, autoAlpha: 0, duration: 0.5, ease: 'power3.in' }, 26.55);
 
   // заголовки
   BEATS.forEach((b, i) => {
@@ -171,7 +171,7 @@ M.start(({ tl }) => {
     if (document.querySelector(sel + ' .sub')) M.text(sel + ' .sub', { at: b.at + (b.strike ? 1.2 : 0.5), in: 'rise', by: 'words', sfx: false });
     if (b.final) M.show(sel + ' .cta', { at: b.at + 1.0, in: 'pop' });
     if (b.chips) b.chips.forEach(([c, t], j) => M.show(sel + 'c' + j, { at: t, in: 'pop' }));
-    if (b.out) tl.to(sel, { autoAlpha: 0, y: -24, duration: 0.28, ease: 'power3.in' }, b.out - 0.28);
+    if (b.out) tl.to(sel, { autoAlpha: 0, y: -24, duration: 0.35, ease: 'power1.in' }, b.out - 0.35);
   });
   M.hit(0.25, 'l');
   M.hit(27.15, 'l');
