@@ -18,6 +18,7 @@ export type Settings = {
   drift: boolean;
   countdown: boolean;
   spin: boolean;
+  playback: 'auto' | 'spotify';
 };
 
 const defaults: Settings = {
@@ -37,6 +38,7 @@ const defaults: Settings = {
   drift: true,
   countdown: true,
   spin: true,
+  playback: 'auto',
 };
 
 let saved: Partial<Settings> = {};

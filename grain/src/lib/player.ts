@@ -2,10 +2,12 @@ import { api, ApiError, auth, token } from './spotify';
 import { createStore } from './store';
 import type { Device, Track } from './types';
 import { toast } from './ui';
+import { settings } from './settings';
+import { bridge } from './bridge';
 
 export type Repeat = 'off' | 'context' | 'track';
 export type PlayerState = {
-  sdk: 'idle' | 'loading' | 'ready' | 'error';
+  sdk: 'idle' | 'loading' | 'ready' | 'error' | 'off';
   sdkError: string | null;
   sdkDeviceId: string | null;
   track: Track | null;
@@ -54,7 +56,10 @@ function fromSdkTrack(t: any): Track {
 }
 
 export function loadSdk() {
-  if (auth.isDemo() || player.get().sdk !== 'idle') return;
+  if (auth.isDemo()) return;
+  if (settings.get().playback === 'spotify') { player.set({ sdk: 'off', sdkError: null }); return; }
+  if (player.get().sdk !== 'idle') return;
+  if ((window as any).Spotify?.Player) { player.set({ sdk: 'loading' }); (window as any).onSpotifyWebPlaybackSDKReady(); return; }
   player.set({ sdk: 'loading' });
   (window as any).onSpotifyWebPlaybackSDKReady = () => {
     const P = (window as any).Spotify.Player;
@@ -70,7 +75,7 @@ export function loadSdk() {
     sdkPlayer.addListener('initialization_error', fail('Встроенное воспроизведение недоступно в этой сборке (нет Widevine). Музыка будет играть через приложение Spotify.'));
     sdkPlayer.addListener('authentication_error', fail('Spotify не принял токен для встроенного плеера. Попробуйте перезайти.'));
     sdkPlayer.addListener('account_error', fail('Встроенный плеер работает только с Spotify Premium.'));
-    sdkPlayer.addListener('playback_error', ({ message }: any) => toast(`Ошибка воспроизведения: ${message}`));
+    sdkPlayer.addListener('playback_error', ({ message }: any) => { console.warn('[sdk] playback_error', message); onSdkPlaybackError(); });
     sdkPlayer.addListener('ready', ({ device_id }: any) => {
       player.set({ sdk: 'ready', sdkDeviceId: device_id, sdkError: null });
       // если сейчас ничего нигде не играет — делаем Grain активным устройством
@@ -150,6 +155,10 @@ export function startSync() {
   stopSync();
   const tick = async () => {
     await sync();
+    if (waitingForApp && !document.hidden) {
+      const dev = await findAppDevice(true);
+      if (dev) { await playbackMode.set('spotify', dev); toast(`Нашёл «${dev.name}» — музыка играет через приложение Spotify.`); }
+    }
     const interval = document.hidden ? 12_000 : isLocal() ? 15_000 : 2_500;
     syncTimer = window.setTimeout(tick, interval);
   };
@@ -157,15 +166,70 @@ export function startSync() {
 }
 export function stopSync() { if (syncTimer) clearTimeout(syncTimer); }
 
+// ── режим воспроизведения: встроенный плеер или приложение Spotify ─────────
+let waitingForApp = false;
+let lastErrorToast = 0;
+const isDesktopApp = (d: Device) => d.type === 'Computer' && d.id !== player.get().sdkDeviceId && d.name !== 'Grain';
+
+async function findAppDevice(strict = false): Promise<Device | null> {
+  try {
+    const { devices } = await api.devices();
+    return devices.find(isDesktopApp) ?? (strict ? null : devices.find((d) => d.id !== player.get().sdkDeviceId)) ?? null;
+  } catch { return null; }
+}
+
+/** Spotify не дал ключ DRM встроенному плееру — переходим на приложение Spotify. */
+async function onSdkPlaybackError() {
+  if (settings.get().playback === 'spotify') return;
+  const dev = await findAppDevice(true);
+  if (dev) {
+    await playbackMode.set('spotify', dev);
+    toast(`Встроенный плеер не смог включить трек — играю через «${dev.name}». Вернуть можно в настройках.`);
+    return;
+  }
+  waitingForApp = true;
+  if (Date.now() - lastErrorToast > 15000) {
+    lastErrorToast = Date.now();
+    toast('Spotify не разрешил встроенному плееру включить трек. Откройте приложение Spotify на компьютере — Grain сам переключится на него.',
+      { label: 'Скачать Spotify', run: () => bridge.openExternal('https://www.spotify.com/download/windows/') });
+  }
+}
+
+export const playbackMode = {
+  async set(mode: 'auto' | 'spotify', device?: Device | null) {
+    settings.set({ playback: mode });
+    if (mode === 'spotify') {
+      waitingForApp = false;
+      try { sdkPlayer?.disconnect(); } catch {}
+      sdkPlayer = null;
+      player.set({ sdk: 'off', sdkDeviceId: null, sdkError: null });
+      const dev = device ?? await findAppDevice();
+      if (dev) { try { await api.transfer(dev.id, true); } catch {} setTimeout(sync, 800); }
+      else toast('Откройте приложение Spotify на компьютере — Grain будет управлять им.');
+    } else {
+      player.set({ sdk: 'idle' });
+      loadSdk();
+    }
+  },
+};
+
 // ── команды ───────────────────────────────────────────────────────────────
 const targetDevice = () => {
   const s = player.get();
   return s.device?.id ?? s.sdkDeviceId ?? undefined;
 };
 
+/** Для запуска музыки: активное устройство, встроенный плеер или приложение Spotify на ПК. */
+async function resolveDevice() {
+  const t = targetDevice();
+  if (t) return t;
+  const dev = await findAppDevice();
+  return dev?.id;
+}
+
 async function run(fn: () => Promise<any>, fallbackMsg = 'Не получилось') {
   try { await fn(); } catch (e) {
-    if (e instanceof ApiError && e.status === 404) toast('Нет активного устройства. Откройте Spotify где-нибудь или дождитесь встроенного плеера.');
+    if (e instanceof ApiError && e.status === 404) toast('Нет устройства для воспроизведения. Откройте приложение Spotify на компьютере или телефоне.', { label: 'Скачать Spotify', run: () => bridge.openExternal('https://www.spotify.com/download/windows/') });
     else if (e instanceof ApiError && e.status === 403) toast(e.reason === 'PREMIUM_REQUIRED' ? 'Управление воспроизведением требует Spotify Premium.' : `${fallbackMsg}: ${e.message}`);
     else toast(`${fallbackMsg}: ${(e as Error).message}`);
     setTimeout(sync, 400);
@@ -179,13 +243,13 @@ const optimistic = (patch: Partial<PlayerState>) => {
 export const controls = {
   async playContext(contextUri: string, offset?: { uri?: string; position?: number }) {
     activateElement();
-    await run(() => api.play(targetDevice(), { context_uri: contextUri, offset }), 'Не удалось включить');
+    await run(async () => api.play(await resolveDevice(), { context_uri: contextUri, offset }), 'Не удалось включить');
     setTimeout(sync, 500);
   },
   async playUris(uris: string[], startUri?: string) {
     activateElement();
     const list = uris.slice(0, 700);
-    await run(() => api.play(targetDevice(), { uris: list, offset: startUri ? { uri: startUri } : undefined }), 'Не удалось включить');
+    await run(async () => api.play(await resolveDevice(), { uris: list, offset: startUri ? { uri: startUri } : undefined }), 'Не удалось включить');
     setTimeout(sync, 500);
   },
   async toggle() {
@@ -194,7 +258,7 @@ export const controls = {
     if (!s.track && !s.device) return toast('Нечего играть — выберите трек.');
     optimistic({ playing: !s.playing });
     if (isLocal() && sdkPlayer) return sdkPlayer.togglePlay();
-    await run(() => (s.playing ? api.pause(targetDevice()) : api.play(targetDevice())));
+    await run(async () => (s.playing ? api.pause(targetDevice()) : api.play(await resolveDevice())));
   },
   async next() {
     activateElement();

@@ -3,7 +3,7 @@ import { auth } from '../lib/spotify';
 import { settings, ACCENTS } from '../lib/settings';
 import { useStore } from '../lib/store';
 import { libraryStore } from '../lib/library';
-import { player } from '../lib/player';
+import { player, playbackMode } from '../lib/player';
 import { bridge, isDesktop } from '../lib/bridge';
 import { toast, ui } from '../lib/ui';
 import { Cover } from '../components/Cover';
@@ -34,10 +34,16 @@ export function SettingsView() {
           <button className="btn" onClick={() => auth.logout()}><I.logout size={15} /> Выйти</button>
         </div>
         <div className="set-row">
-          <div className="grow"><b>Встроенный плеер</b><small>
-            {sdk === 'ready' ? 'Работает: Grain — отдельное устройство Spotify Connect.' : sdk === 'error' ? sdkError : sdk === 'loading' ? 'Подключается…' : 'Не запущен'}
+          <div className="grow"><b>Где играет звук</b><small>
+            {s.playback === 'spotify'
+              ? 'Через приложение Spotify на компьютере или телефоне. Grain — оболочка и пульт. Самый надёжный вариант.'
+              : sdk === 'ready' ? 'Внутри Grain (встроенный плеер). Если треки не включаются, Grain сам перейдёт на приложение Spotify.'
+                : sdk === 'error' ? sdkError : sdk === 'loading' ? 'Встроенный плеер подключается…' : 'Встроенный плеер не запущен'}
           </small></div>
-          <span className={`status-dot ${sdk}`} />
+          <div className="seg small">
+            <button className={s.playback === 'auto' ? 'on' : ''} onClick={() => playbackMode.set('auto')}>Внутри Grain</button>
+            <button className={s.playback === 'spotify' ? 'on' : ''} onClick={() => playbackMode.set('spotify')}>Приложение Spotify</button>
+          </div>
         </div>
       </section>
 
