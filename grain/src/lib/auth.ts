@@ -1,4 +1,4 @@
-import { bridge } from './bridge';
+import { bridge, isDesktop } from './bridge';
 
 export const SCOPES = [
   'streaming', 'user-read-email', 'user-read-private',
@@ -32,7 +32,8 @@ export async function beginLogin(clientId: string) {
     code_challenge_method: 'S256', code_challenge: challenge, scope: SCOPES, state,
   });
   const url = `https://accounts.spotify.com/authorize?${q}`;
-  bridge.openExternal(url);
+  // в браузере уходим на Spotify в этой же вкладке и возвращаемся обратно на сайт
+  if (isDesktop) bridge.openExternal(url); else location.assign(url);
   return url;
 }
 

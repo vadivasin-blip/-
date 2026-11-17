@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { beginLogin, parseCallback } from '../lib/auth';
 import { settings } from '../lib/settings';
-import { bridge } from '../lib/bridge';
+import { bridge, isDesktop } from '../lib/bridge';
 import { copy } from '../lib/ui';
 import { Logo, WindowControls } from '../components/TopBar';
 import { I } from '../components/icons';
@@ -53,10 +53,10 @@ export function Login({ error, waiting, onCallback }: { error?: string | null; w
           <button className="btn primary" disabled={!valid}>Войти через Spotify</button>
         </form>
 
-        {(started || waiting) && !error && <div className="login-note"><span className="spinner" /> Подтвердите вход в открывшемся браузере, потом вернитесь сюда.</div>}
+        {(started || waiting) && !error && <div className="login-note"><span className="spinner" /> {isDesktop ? "Подтвердите вход в открывшемся браузере, потом вернитесь сюда." : "Переходим на страницу входа Spotify…"}</div>}
         {error && <div className="login-note err">{error}</div>}
 
-        {authUrl && (
+        {authUrl && isDesktop && (
           <div className="login-manual">
             <b>Браузер не открылся или вход не завершается?</b>
             <ol>
@@ -83,7 +83,8 @@ export function Login({ error, waiting, onCallback }: { error?: string | null; w
           </div>
         )}
         <div className="login-foot">
-          <span>Ключ и токены хранятся только на этом компьютере, в зашифрованном виде.</span>
+          <span>{isDesktop ? 'Ключ и токены хранятся только на этом компьютере, в зашифрованном виде.' : 'Ключ и токены хранятся только в этом браузере. Нужен Chrome, Edge или Firefox на компьютере.'}</span>
+          {!isDesktop && <a onClick={() => bridge.openExternal('https://github.com/vadivasin-blip/-/releases/latest/download/Grain-Setup.exe')}>Скачать Grain для Windows</a>}
           <a onClick={() => (location.search = '?demo')}>Посмотреть интерфейс на демо-данных</a>
         </div>
       </div>

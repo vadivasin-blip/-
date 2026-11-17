@@ -29,9 +29,10 @@ export const bridge: GrainBridge = window.grain ?? {
   setSecret: async (v) => { v == null ? localStorage.removeItem('grain.secret') : localStorage.setItem('grain.secret', JSON.stringify(v)); return true; },
   getPrefs: async () => ({ closeToTray: false, globalHotkeys: true }),
   setPrefs: async (p) => p,
-  info: async () => ({ version: 'dev', redirectUri: 'http://127.0.0.1:43117/callback', platform: 'web', widevine: false }),
+  // веб-версия: Spotify возвращает на корень сайта, адрес вычисляется из того, где открыт плеер
+  info: async () => ({ version: 'web', redirectUri: location.origin + import.meta.env.BASE_URL, platform: 'web', widevine: true }),
   openExternal: (url) => window.open(url, '_blank'),
-  setMini: () => {}, minimize: () => {}, close: () => {}, setFullscreen: () => {}, toggleMax: () => {}, isMaximized: async () => false, onWinState: noop,
+  setMini: () => {}, minimize: () => {}, close: () => {}, setFullscreen: (on) => { (on ? document.documentElement.requestFullscreen?.() : document.exitFullscreen?.())?.catch?.(() => {}); }, toggleMax: () => {}, isMaximized: async () => false, onWinState: noop,
   thumbar: () => {}, nowPlaying: () => {},
   onAuth: noop, onMedia: noop, onNav: noop, onMini: noop,
 };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { auth } from './lib/spotify';
 import { finishLogin, type Session } from './lib/auth';
-import { bridge } from './lib/bridge';
+import { bridge, isDesktop } from './lib/bridge';
 import { demoRequest } from './lib/demo';
 import { loadLibrary } from './lib/library';
 import { controls, loadSdk, player, startSync } from './lib/player';
@@ -47,9 +47,17 @@ export function App() {
       if (new URLSearchParams(location.search).has('mini')) ui.set({ mini: true });
       return;
     }
-    bridge.getSecret().then((s: Session | null) => {
-      if (s?.refresh) { auth.set(s); setStatus('in'); } else setStatus('out');
-    });
+    // веб-версия: Spotify вернул нас на сайт с ?code=… — завершаем вход и чистим адрес
+    const qs = new URLSearchParams(location.search);
+    if (!isDesktop && (qs.has('code') || qs.has('error'))) {
+      history.replaceState(null, '', location.pathname);
+      setStatus('out');
+      handleCallback({ code: qs.get('code'), state: qs.get('state'), error: qs.get('error') });
+    } else {
+      bridge.getSecret().then((s: Session | null) => {
+        if (s?.refresh) { auth.set(s); setStatus('in'); } else setStatus('out');
+      });
+    }
     return bridge.onAuth(handleCallback);
   }, []);
 
@@ -174,7 +182,7 @@ function useShortcuts(enabled: boolean) {
       }
       if (ctrl && k === 'l') { e.preventDefault(); ui.set({ panel: u.panel === 'lyrics' ? 'now' : 'lyrics' }); return; }
       if (ctrl && k === 'q') { e.preventDefault(); ui.set({ panel: u.panel === 'queue' ? 'now' : 'queue' }); return; }
-      if (ctrl && k === 'm') { e.preventDefault(); bridge.setMini(true); return; }
+      if (ctrl && k === 'm' && isDesktop) { e.preventDefault(); bridge.setMini(true); return; }
       if (ctrl && e.key === 'ArrowRight') { e.preventDefault(); controls.next(); return; }
       if (ctrl && e.key === 'ArrowLeft') { e.preventDefault(); controls.prev(); return; }
       if (typing || ctrl || e.altKey) return;

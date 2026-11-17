@@ -3,7 +3,7 @@ import { controls, player, refreshQueue } from '../lib/player';
 import { useStore } from '../lib/store';
 import { fmt, router, ui, year } from '../lib/ui';
 import { usePosition } from '../lib/hooks';
-import { bridge } from '../lib/bridge';
+import { bridge, isDesktop } from '../lib/bridge';
 import { img, type Track } from '../lib/types';
 import { Cover } from './Cover';
 import { I } from './icons';
@@ -75,7 +75,7 @@ export function Deck() {
         <div className="deck-utils-right">
           <SleepButton />
           <DeviceButton />
-          <button className="icon-btn" title="Мини-плеер (Ctrl+M)" onClick={() => bridge.setMini(true)}><I.mini size={18} /></button>
+          {isDesktop && <button className="icon-btn" title="Мини-плеер (Ctrl+M)" onClick={() => bridge.setMini(true)}><I.mini size={18} /></button>}
           <button className="icon-btn" title="Во весь экран (F)" onClick={() => ui.set({ fullscreen: true })}><I.expand size={17} /></button>
         </div>
       </div>

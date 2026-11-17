@@ -4,7 +4,7 @@ import { controls, sleep } from '../lib/player';
 import { libraryStore } from '../lib/library';
 import { useStore } from '../lib/store';
 import { router, ui } from '../lib/ui';
-import { bridge } from '../lib/bridge';
+import { bridge, isDesktop } from '../lib/bridge';
 import { settings } from '../lib/settings';
 import { fx } from '../lib/fx';
 import { img, artistsLine, type Album, type Artist, type Track } from '../lib/types';
@@ -25,11 +25,11 @@ const COMMANDS: Omit<Item, 'group'>[] = [
   { id: 'c-lyrics', title: 'Показать текст песни', run: () => ui.set({ panel: 'lyrics' }) },
   { id: 'c-queue', title: 'Показать очередь', run: () => ui.set({ panel: 'queue' }) },
   { id: 'c-full', title: 'Экран «Сейчас играет»', run: () => ui.set({ fullscreen: true }) },
-  { id: 'c-mini', title: 'Мини-плеер', run: () => bridge.setMini(true) },
   { id: 'c-sleep30', title: 'Таймер сна: 30 минут', run: () => sleep.set(30) },
   { id: 'c-sleep60', title: 'Таймер сна: 1 час', run: () => sleep.set(60) },
   { id: 'c-sleept', title: 'Таймер сна: в конце трека', run: () => sleep.set('track') },
   { id: 'c-sleepoff', title: 'Таймер сна: выключить', run: () => sleep.set(null) },
+  ...(isDesktop ? [{ id: 'c-mini', title: 'Мини-плеер', run: () => bridge.setMini(true) }] : []),
   { id: 'c-keys', title: 'Горячие клавиши', run: () => ui.set({ shortcuts: true }) },
   { id: 'c-winter', title: 'Тема: новогодняя', run: () => settings.set({ theme: 'winter' }) },
   { id: 'c-classic', title: 'Тема: классическая', run: () => settings.set({ theme: 'classic' }) },
