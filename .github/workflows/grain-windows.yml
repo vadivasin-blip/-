@@ -7,12 +7,16 @@ on:
       - 'grain/**'
       - '.github/workflows/grain-windows.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
     defaults:
       run:
         working-directory: grain
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,9 +27,28 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run dist:win
+      - id: ver
+        run: echo "v=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      # постоянные имена — чтобы ссылка /releases/latest/download/… не менялась между версиями
+      - run: |
+          cp "release/Grain-Setup-${{ steps.ver.outputs.v }}.exe" release/Grain-Setup.exe
+          cp "release/Grain-${{ steps.ver.outputs.v }}-portable.exe" release/Grain-portable.exe
       - uses: actions/upload-artifact@v4
         with:
           name: Grain-Windows
-          path: |
-            grain/release/*.exe
+          path: grain/release/Grain-Setup.exe
           if-no-files-found: error
+      - name: Публикация релиза
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: grain-v${{ steps.ver.outputs.v }}
+          name: Grain ${{ steps.ver.outputs.v }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            Плеер для Spotify в виде проигрывателя винила, с новогодней темой.
+            **Grain-Setup.exe** — установщик, **Grain-portable.exe** — запуск без установки.
+            Первый запуск: см. README в папке grain (нужен свой Client ID Spotify и Premium).
+          files: |
+            grain/release/Grain-Setup.exe
+            grain/release/Grain-portable.exe
