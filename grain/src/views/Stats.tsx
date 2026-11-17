@@ -42,7 +42,7 @@ export function StatsView() {
   return (
     <div className="page stats">
       <div className="lib-head">
-        <h1 className="page-title">Статистика</h1>
+        <div><div className="kicker">что крутилось</div><h1 className="page-title">Итоги</h1></div>
         <div className="seg">{RANGES.map(([k, l]) => <button key={k} className={range === k ? 'on' : ''} onClick={() => setRange(k)}>{l}</button>)}</div>
         <div className="grow" />
         {tList.length > 0 && <button className="btn ghost" onClick={() => controls.playUris(tList.map((t) => t.uri))}><I.play size={14} /> Играть топ-50</button>}

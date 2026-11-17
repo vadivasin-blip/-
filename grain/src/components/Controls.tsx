@@ -1,58 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
+import { Knob } from './Knob';
 import { api } from '../lib/spotify';
 import { controls, player, sleep } from '../lib/player';
 import { useStore } from '../lib/store';
 import { usePosition, useClickOutside } from '../lib/hooks';
-import { fmt, router, ui, type Panel } from '../lib/ui';
-import { img, artistsLine, type Device } from '../lib/types';
-import { bridge } from '../lib/bridge';
-import { Cover } from './Cover';
+import { fmt } from '../lib/ui';
+import { artistsLine, type Device } from '../lib/types';
 import { I } from './icons';
 import { Slider } from './Slider';
-
-export function PlayerBar() {
-  const track = useStore(player, (s) => s.track);
-  const liked = useStore(player, (s) => s.liked);
-  return (
-    <footer className="playerbar">
-      <div className="pb-left">
-        {track ? (
-          <>
-            <button className="pb-cover" onClick={() => ui.set({ fullscreen: true })} title="Экран «Сейчас играет» (F)">
-              <Cover src={img(track.album?.images, 120)} size={52} />
-              <span className="pb-cover-hint"><I.expand size={16} /></span>
-            </button>
-            <div className="pb-meta">
-              <a className="pb-title" onClick={() => track.album?.id && router.go({ name: 'album', id: track.album.id })} title={track.name}>{track.name}</a>
-              <div className="pb-artists">
-                {track.artists.map((a, i) => (
-                  <span key={a.id || i}>{i > 0 && ', '}<a onClick={() => a.id && router.go({ name: 'artist', id: a.id })}>{a.name}</a></span>
-                ))}
-              </div>
-            </div>
-            <button className={`icon-btn like ${liked ? 'on' : ''}`} onClick={controls.toggleLike} title={liked ? 'Убрать из «Любимых» (L)' : 'В «Любимые» (L)'}>
-              {liked ? <I.heartFill size={18} /> : <I.heart size={18} />}
-            </button>
-          </>
-        ) : (
-          <div className="pb-empty">Ничего не играет</div>
-        )}
-      </div>
-      <div className="pb-center">
-        <Transport />
-        <Progress />
-      </div>
-      <div className="pb-right">
-        <SleepButton />
-        <PanelButton panel="lyrics" title="Текст песни (Ctrl+L)"><I.lyrics size={18} /></PanelButton>
-        <PanelButton panel="queue" title="Очередь (Ctrl+Q)"><I.queue size={18} /></PanelButton>
-        <DeviceButton />
-        <Volume />
-        <button className="icon-btn" title="Мини-плеер (Ctrl+M)" onClick={() => bridge.setMini(true)}><I.mini size={18} /></button>
-      </div>
-    </footer>
-  );
-}
 
 export function Transport({ small }: { small?: boolean }) {
   const s = useStore(player, (s) => ({ playing: s.playing, shuffle: s.shuffle, repeat: s.repeat }));
@@ -98,32 +53,9 @@ export function Progress({ bare }: { bare?: boolean }) {
   );
 }
 
-function Volume() {
-  const { volume, muted } = useStore(player, (s) => ({ volume: s.volume, muted: s.muted }));
-  const v = muted ? 0 : volume;
-  const Icon = v === 0 ? I.mute : v < 45 ? I.volLow : I.vol;
-  return (
-    <div className="volume">
-      <button className="icon-btn" onClick={controls.toggleMute} title={muted ? 'Включить звук (M)' : 'Без звука (M)'}><Icon size={18} /></button>
-      <Slider value={v / 100} ariaLabel="Громкость" className="vol" label={(x) => `${Math.round(x * 100)}%`} step={0.05}
-        onChange={(x) => player.set({ volume: Math.round(x * 100), muted: false })}
-        onCommit={(x) => controls.setVolume(x * 100)} />
-    </div>
-  );
-}
-
-function PanelButton({ panel, title, children }: { panel: Panel; title: string; children: React.ReactNode }) {
-  const cur = useStore(ui, (s) => s.panel);
-  return (
-    <button className={`icon-btn toggle ${cur === panel ? 'on' : ''}`} title={title} onClick={() => ui.set({ panel: cur === panel ? null : panel })}>
-      {children}
-    </button>
-  );
-}
-
 const deviceIcon = (type: string) => (type === 'Smartphone' ? I.phone : type === 'Speaker' || type === 'CastAudio' ? I.speaker : I.device);
 
-function DeviceButton() {
+export function DeviceButton() {
   const [open, setOpen] = useState(false);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -144,7 +76,6 @@ function DeviceButton() {
       <button className={`icon-btn toggle ${remote ? 'on' : ''}`} onClick={toggle} title="Устройство воспроизведения">
         <I.device size={18} />
       </button>
-      {remote && <span className="device-pill" onClick={toggle}>{device!.name}</span>}
       {open && (
         <div className="popover devices">
           <div className="pop-title">Где играть</div>
@@ -168,7 +99,7 @@ function DeviceButton() {
   );
 }
 
-function SleepButton() {
+export function SleepButton() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { sleepAt, sleepEndOfTrack } = useStore(player, (s) => ({ sleepAt: s.sleepAt, sleepEndOfTrack: s.sleepEndOfTrack }));
@@ -201,3 +132,12 @@ export const nowLine = () => {
   const t = player.get().track;
   return t ? `${t.name} — ${artistsLine(t.artists)}` : '';
 };
+
+export function VolumeKnob() {
+  const { volume, muted } = useStore(player, (s) => ({ volume: s.volume, muted: s.muted }));
+  return (
+    <Knob value={(muted ? 0 : volume) / 100} label="Громкость"
+      onChange={(x) => player.set({ volume: Math.round(x * 100), muted: false })}
+      onCommit={(x) => controls.setVolume(x * 100)} onDouble={controls.toggleMute} />
+  );
+}

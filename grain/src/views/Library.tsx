@@ -9,6 +9,8 @@ import { MediaCard } from '../components/MediaCard';
 import { Loading } from '../components/PageHeader';
 import { I } from '../components/icons';
 import { createPlaylistFlow } from '../components/AddToPlaylist';
+import { Vinyl } from '../components/Vinyl';
+import { LikedSleeve } from './Collection';
 
 type Tab = 'playlists' | 'albums' | 'artists';
 
@@ -40,7 +42,7 @@ export function LibraryView({ tab: initial }: { tab?: string }) {
   return (
     <div className="page">
       <div className="lib-head">
-        <h1 className="page-title">Медиатека</h1>
+        <div><div className="kicker">ваша коллекция</div><h1 className="page-title">Полка</h1></div>
         <div className="seg">
           {([['playlists', 'Плейлисты'], ['albums', 'Альбомы'], ['artists', 'Исполнители']] as [Tab, string][]).map(([k, l]) => (
             <button key={k} className={tab === k ? 'on' : ''} onClick={() => { setTab(k); router.replace({ name: 'library', tab: k }); }}>{l}</button>
@@ -60,12 +62,12 @@ export function LibraryView({ tab: initial }: { tab?: string }) {
       {tab === 'playlists' && (
         <div className="grid">
           <div className="card new-card" onClick={createPlaylistFlow}>
-            <div className="card-art"><span className="cover"><I.plus size={34} /></span></div>
+            <div className="sleeve"><div className="sleeve-cover"><span className="cover"><I.plus size={34} /></span></div></div>
             <div className="card-title">Новый плейлист</div>
             <div className="card-sub">Пустой, закрытый</div>
           </div>
-          <div className="card" onClick={() => router.go({ name: 'liked' })}>
-            <div className="card-art"><span className="cover liked-tile fill"><I.heartFill size={40} /></span></div>
+          <div className="card sleeve-card" onClick={() => router.go({ name: 'liked' })}>
+            <div className="sleeve"><Vinyl spinning={false} className="sleeve-vinyl" /><div className="sleeve-cover"><LikedSleeve /></div></div>
             <div className="card-title">Любимые треки</div>
             <div className="card-sub">Коллекция</div>
           </div>

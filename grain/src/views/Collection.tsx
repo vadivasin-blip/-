@@ -10,6 +10,17 @@ import { img, playlistTotal, type Row } from '../lib/types';
 import { ErrorBox, Loading, PageHeader } from '../components/PageHeader';
 import { TrackList } from '../components/TrackList';
 import { I } from '../components/icons';
+import { Vinyl } from '../components/Vinyl';
+
+/** Обложка «Любимых»: своя, а не картинка Spotify. */
+export function LikedSleeve() {
+  return (
+    <span className="cover liked-sleeve">
+      <I.heartFill size={44} />
+      <span className="ls-text">Любимые</span>
+    </span>
+  );
+}
 
 /** Постепенная загрузка всех строк: первая страница сразу, остальное — фоном. */
 function useRows(key: string, fetchPage: (offset: number) => Promise<{ items: Row[]; total: number; next: string | null; offset: number; limit: number }>) {
@@ -49,7 +60,7 @@ export function PlaylistView({ id }: { id: string }) {
 
   return (
     <div className="page">
-      <PageHeader image={img(p.images, 640)} kind={p.public === false ? 'Закрытый плейлист' : 'Плейлист'} title={p.name} desc={p.description}
+      <PageHeader image={img(p.images, 640)} uri={p.uri} kind={p.public === false ? 'Закрытый плейлист' : 'Плейлист'} title={p.name} desc={p.description}
         meta={<>
           <b>{p.owner?.display_name ?? p.owner?.id}</b>
           <span>{plural(playlistTotal(p) || rows?.length || 0, 'трек', 'трека', 'треков')}</span>
@@ -89,18 +100,13 @@ export function LikedView() {
   const isCur = !!ctx?.endsWith(':collection');
   return (
     <div className="page">
-      <header className="page-head liked-head">
-        <span className="ph-cover liked-tile huge"><I.heartFill size={64} /></span>
-        <div className="ph-text">
-          <div className="ph-kind">Коллекция</div>
-          <h1>Любимые треки</h1>
-          <div className="ph-meta">
-            <b>{me?.display_name}</b>
-            {rows && <span>{plural(rows.length, 'трек', 'трека', 'треков')}{!done && '…'}</span>}
-            {done && <span>{fmtLong(total)}</span>}
-          </div>
-        </div>
-      </header>
+      <PageHeader kind="Коллекция" title="Любимые треки" uri={uri}
+        art={<div className="ph-art sleeve big"><Vinyl spinning={isCur && playing} className="sleeve-vinyl" /><div className="sleeve-cover"><LikedSleeve /></div></div>}
+        meta={<>
+          <b>{me?.display_name}</b>
+          {rows && <span>{plural(rows.length, 'трек', 'трека', 'треков')}{!done && '…'}</span>}
+          {done && <span>{fmtLong(total)}</span>}
+        </>} />
       <ActionBar playing={isCur && playing}
         onPlay={() => (isCur ? controls.toggle() : uri && controls.playContext(uri))}
         onShuffle={async () => { if (!player.get().shuffle) await controls.toggleShuffle(); uri && controls.playContext(uri); }} />

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { controls, likeStore, likes, player } from '../lib/player';
 import { useStore } from '../lib/store';
 import { dateAdded, fmt, router } from '../lib/ui';
@@ -74,7 +74,6 @@ export function TrackList({ rows, contextUri, showAlbum = true, showAdded = fals
     return list;
   }, [rows, filter, sort, desc]);
 
-  const custom = sort !== 'default' || !!filter.trim();
   const play = (t: Track) => {
     if (contextUri && !custom) controls.playContext(contextUri, { uri: t.uri });
     else controls.playUris(view.map((r) => r.track.uri), t.uri);
@@ -95,10 +94,33 @@ export function TrackList({ rows, contextUri, showAlbum = true, showAdded = fals
     else if (e.key.toLowerCase() === 'l' && i >= 0 && !e.ctrlKey) { e.preventDefault(); likes.toggle(view[i].track.uri); }
   };
 
+  const custom = sort !== 'default' || !!filter.trim();
   const totalMs = useMemo(() => view.reduce((s, r) => s + (r.track.duration_ms || 0), 0), [view]);
 
+  // как на виниле: альбом делится на стороны A/B (или по дискам), нумерация A1, A2…
+  const sides = useMemo(() => {
+    const out: ({ label: string; head?: { letter: string; count: number; ms: number } } | undefined)[] = [];
+    if (!albumMode || custom || view.length < 4) return out;
+    const discs = new Set(view.map((r) => r.track.disc_number ?? 1));
+    const groups: Row[][] = [];
+    if (discs.size > 1) [...discs].sort().forEach((d) => groups.push(view.filter((r) => (r.track.disc_number ?? 1) === d)));
+    else {
+      // делим по времени примерно пополам
+      const half = totalMs / 2;
+      let acc = 0, cut = 0;
+      for (let i = 0; i < view.length; i++) { acc += view[i].track.duration_ms; if (acc >= half) { cut = i + 1; break; } }
+      cut = Math.min(view.length - 1, Math.max(1, cut));
+      groups.push(view.slice(0, cut), view.slice(cut));
+    }
+    const letters = 'ABCDEFGH';
+    groups.forEach((g, gi) => g.forEach((r, j) => {
+      out.push({ label: `${letters[gi]}${j + 1}`, head: j === 0 ? { letter: letters[gi], count: g.length, ms: g.reduce((x, y) => x + y.track.duration_ms, 0) } : undefined });
+    }));
+    return out;
+  }, [albumMode, custom, view, totalMs]);
+
   return (
-    <div className={`tracklist ${compact ? 'compact' : ''} ${showAlbum ? 'with-album' : ''} ${showAdded ? 'with-added' : ''} ${albumMode ? 'album-mode' : ''}`}>
+    <div className={`tracklist ${compact ? 'compact' : ''} ${albumMode ? 'album-mode' : ''}`}>
       {toolbar && (
         <div className="tl-toolbar">
           <label className="tl-filter">
@@ -117,20 +139,17 @@ export function TrackList({ rows, contextUri, showAlbum = true, showAdded = fals
           <span className="tl-meta mono">{view.length !== rows.length ? `${view.length} из ${rows.length}` : rows.length} · {fmt(totalMs)}</span>
         </div>
       )}
-      <div className="tl-head">
-        <span className="c-num">#</span>
-        <span className="c-title">Название</span>
-        {showAlbum && <span className="c-album">Альбом</span>}
-        {showAdded && <span className="c-added">Добавлен</span>}
-        <span className="c-like" />
-        <span className="c-dur"><I.clock size={14} /></span>
-        <span className="c-more" />
-      </div>
       <div className="tl-body" tabIndex={0} onKeyDown={onKey}>
-        {view.map((r, i) => (
-          <TrackRow key={r.key} row={r} index={albumMode ? r.track.track_number ?? i + 1 : i + 1} showAlbum={showAlbum} showAdded={showAdded}
-            showCover={showCover} selected={sel === r.key} onSelect={setSel} onPlay={play} ctx={ctx} />
-        ))}
+        {view.map((r, i) => {
+          const side = sides[i];
+          return (
+            <Fragment key={r.key}>
+              {side?.head && <div className="side-head"><span className="side-letter">{side.head.letter}</span><span>Сторона {side.head.letter}</span><i /><span className="mono">{side.head.count} · {fmt(side.head.ms)}</span></div>}
+              <TrackRow row={r} index={side ? side.label : String(i + 1).padStart(2, '0')} showAlbum={showAlbum} showAdded={showAdded}
+                showCover={showCover} selected={sel === r.key} onSelect={setSel} onPlay={play} ctx={ctx} />
+            </Fragment>
+          );
+        })}
         {!view.length && !loadingMore && <div className="tl-empty">{filter ? 'Ничего не найдено по фильтру' : empty ?? 'Здесь пока пусто'}</div>}
         {loadingMore && <div className="tl-loading"><span className="spinner" /> Загружаю остальное…</div>}
       </div>
@@ -139,7 +158,7 @@ export function TrackList({ rows, contextUri, showAlbum = true, showAdded = fals
 }
 
 const TrackRow = memo(function TrackRow({ row, index, showAlbum, showAdded, showCover, selected, onSelect, onPlay, ctx }: {
-  row: Row; index: number; showAlbum: boolean; showAdded: boolean; showCover: boolean; selected: boolean;
+  row: Row; index: string; showAlbum: boolean; showAdded: boolean; showCover: boolean; selected: boolean;
   onSelect: (k: string) => void; onPlay: (t: Track) => void; ctx?: TrackCtx;
 }) {
   const t = row.track;
@@ -151,7 +170,7 @@ const TrackRow = memo(function TrackRow({ row, index, showAlbum, showAdded, show
 
   return (
     <div
-      className={`tl-row ${current ? 'current' : ''} ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
+      className={`tl-row ${current ? 'current' : ''} ${selected ? 'selected' : ''} ${disabled ? 'disabled' : ''} ${showCover ? 'with-cover' : ''}`}
       data-row={row.key}
       onClick={() => onSelect(row.key)}
       onDoubleClick={() => !disabled && onPlay(t)}
@@ -160,33 +179,30 @@ const TrackRow = memo(function TrackRow({ row, index, showAlbum, showAdded, show
       <span className="c-num">
         <span className="num mono">{current ? <Bars playing={playing} /> : index}</span>
         <button className="row-play" onClick={(e) => { e.stopPropagation(); current ? controls.toggle() : onPlay(t); }} aria-label="Играть">
-          {current && playing ? <I.pause size={14} /> : <I.play size={14} />}
+          {current && playing ? <I.pause size={13} /> : <I.play size={13} />}
         </button>
       </span>
-      <span className="c-title">
-        {showCover && <Cover src={img(t.album?.images, 64)} size={36} />}
-        <span className="t-text">
+      {showCover && <Cover src={img(t.album?.images, 64)} size={38} />}
+      <span className="c-main">
+        <span className="c-line1">
           <span className="t-name">{t.name}</span>
-          <span className="t-artists">
-            {t.explicit && <I.explicit size={13} className="explicit" />}
-            {t.artists.map((a, j) => (
-              <span key={a.id || j}>{j > 0 && ', '}<a onClick={(e) => { e.stopPropagation(); a.id && router.go({ name: 'artist', id: a.id }); }}>{a.name}</a></span>
-            ))}
-          </span>
+          {t.explicit && <span className="explicit-tag" title="Ненормативная лексика">E</span>}
+          <i className="leader" />
+          <span className="c-dur mono">{fmt(t.duration_ms)}</span>
+        </span>
+        <span className="c-line2">
+          {t.artists.map((a, j) => (
+            <span key={a.id || j}>{j > 0 && ', '}<a onClick={(e) => { e.stopPropagation(); a.id && router.go({ name: 'artist', id: a.id }); }}>{a.name}</a></span>
+          ))}
+          {showAlbum && t.album?.name && <><span className="dot">·</span><a className="t-album" onClick={(e) => { e.stopPropagation(); t.album?.id && router.go({ name: 'album', id: t.album.id }); }}>{t.album.name}</a></>}
+          {showAdded && row.added_at && <><span className="dot">·</span><span className="t-added">{dateAdded(row.added_at)}</span></>}
         </span>
       </span>
-      {showAlbum && (
-        <span className="c-album"><a onClick={(e) => { e.stopPropagation(); t.album?.id && router.go({ name: 'album', id: t.album.id }); }}>{t.album?.name}</a></span>
-      )}
-      {showAdded && <span className="c-added">{dateAdded(row.added_at)}</span>}
-      <span className="c-like">
+      <span className="c-actions">
         <button className={`icon-btn xs like ${liked ? 'on' : ''}`} onClick={(e) => { e.stopPropagation(); likes.toggle(t.uri); }} aria-label="Нравится">
           {liked ? <I.heartFill size={15} /> : <I.heart size={15} />}
         </button>
-      </span>
-      <span className="c-dur mono">{fmt(t.duration_ms)}</span>
-      <span className="c-more">
-        <button className="icon-btn xs" onClick={(e) => { e.stopPropagation(); showTrackMenu(e, t, { ...ctx, play: () => onPlay(t) }); }} aria-label="Ещё"><I.more size={16} /></button>
+        <button className="icon-btn xs more" onClick={(e) => { e.stopPropagation(); showTrackMenu(e, t, { ...ctx, play: () => onPlay(t) }); }} aria-label="Ещё"><I.more size={16} /></button>
       </span>
     </div>
   );

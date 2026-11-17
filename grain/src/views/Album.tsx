@@ -57,7 +57,7 @@ export function AlbumView({ id }: { id: string }) {
 
   return (
     <div className="page">
-      <PageHeader image={img(al.images, 640)} kind={KIND[al.album_type ?? 'album'] ?? 'Альбом'} title={al.name}
+      <PageHeader image={img(al.images, 640)} uri={al.uri} kind={KIND[al.album_type ?? 'album'] ?? 'Альбом'} title={al.name}
         meta={<>
           {al.artists.map((a, i) => <b key={a.id}>{i > 0 && ', '}<a onClick={() => router.go({ name: 'artist', id: a.id })}>{a.name}</a></b>)}
           <span className="mono">{year(al.release_date)}</span>

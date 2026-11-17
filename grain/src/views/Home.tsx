@@ -6,8 +6,10 @@ import { useStore } from '../lib/store';
 import { useAsync } from '../lib/useAsync';
 import { router, plural } from '../lib/ui';
 import { img, artistsLine, playlistTotal, type Artist, type Track } from '../lib/types';
-import { Cover } from '../components/Cover';
-import { Bars, I } from '../components/icons';
+import { I } from '../components/icons';
+import { Vinyl } from '../components/Vinyl';
+import { LikedSleeve } from './Collection';
+import { useTheme } from '../lib/season';
 import { MediaCard, Shelf } from '../components/MediaCard';
 import { TrackList } from '../components/TrackList';
 
@@ -53,50 +55,57 @@ export function Home() {
     return out;
   }, [recent.data, playlists]);
 
-  const quick = recents.slice(0, 8);
-  const go = (r: Recent) => {
-    if (r.kind === 'liked') router.go({ name: 'liked' });
-    else router.go({ name: r.kind as 'album', id: r.id });
-  };
+  const winter = useTheme() === 'winter';
+  const xmas = useAsync(winter ? 'home:xmas' : null, async () => {
+    const r = await api.search('новогодние песни', 'playlist', 10);
+    return (r.playlists?.items ?? []).filter((p) => p && p.images?.length);
+  });
+  const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div className="page home">
-      <h1 className="home-hello">{greeting()}{me?.display_name ? `, ${me.display_name.split(' ')[0]}` : ''}</h1>
+      <div className="hero">
+        <div className="kicker">{today}</div>
+        <h1 className="home-hello">{greeting()}{me?.display_name ? <>,<br />{me.display_name.split(' ')[0]}</> : ''}</h1>
+      </div>
 
-      {quick.length > 0 && (
-        <div className="quick">
-          {quick.map((r) => (
-            <div key={r.uri} className={`quick-tile ${ctx === r.uri ? 'current' : ''}`} onClick={() => go(r)}>
-              {r.kind === 'liked' ? <span className="liked-tile big"><I.heartFill size={20} /></span> : <Cover src={r.image} size={56} round={r.kind === 'artist'} />}
-              <span className="qt-name">{r.title}</span>
-              {ctx === r.uri ? <span className="qt-eq"><Bars playing={playing} /></span> : (
-                <button className="qt-play" onClick={(e) => { e.stopPropagation(); controls.playContext(r.uri); }} aria-label="Играть"><I.play size={15} /></button>
-              )}
-            </div>
+      {recents.length > 0 && (
+        <section className="shelf">
+          <div className="shelf-head"><div><div className="kicker">с проигрывателя</div><h2>Недавние пластинки</h2></div></div>
+          <div className="crate">
+            {recents.slice(0, 10).map((r) => r.kind === 'liked' ? (
+              <div key={r.uri} className={`card sleeve-card ${ctx === r.uri ? 'current' : ''}`} onClick={() => router.go({ name: 'liked' })}>
+                <div className="sleeve"><Vinyl spinning={ctx === r.uri && playing} className="sleeve-vinyl" /><div className="sleeve-cover"><LikedSleeve /></div>
+                  <button className="card-play" onClick={(e) => { e.stopPropagation(); controls.playContext(r.uri); }} aria-label="Играть"><I.play size={16} /></button></div>
+                <div className="card-title">{r.title}</div><div className="card-sub">{r.sub}</div>
+              </div>
+            ) : (
+              <MediaCard key={r.uri} title={r.title} sub={r.sub} image={r.image} uri={r.uri} route={{ name: r.kind as 'album', id: r.id }} round={r.kind === 'artist'} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {winter && xmas.data && xmas.data.length > 0 && (
+        <Shelf kicker="сезонное" title="Под ёлку">
+          {xmas.data.slice(0, 6).map((p) => (
+            <MediaCard key={p.id} title={p.name} sub={`от ${p.owner?.display_name ?? '—'}`} image={img(p.images, 300)} uri={p.uri} route={{ name: 'playlist', id: p.id }} />
           ))}
-        </div>
+        </Shelf>
       )}
 
       {topTracks.data && topTracks.data.items.length > 0 && (
         <section className="shelf">
           <div className="shelf-head">
-            <h2>На повторе этого месяца</h2>
-            <button className="link-btn" onClick={() => router.go({ name: 'stats' })}>вся статистика</button>
+            <div><div className="kicker">последние 4 недели</div><h2>На повторе</h2></div>
+            <button className="link-btn" onClick={() => router.go({ name: 'stats' })}>все итоги →</button>
           </div>
-          <TrackList rows={topTracks.data.items.slice(0, 5).map((t, i) => ({ track: t, key: t.uri + i }))} showAlbum />
+          <TrackList rows={topTracks.data.items.slice(0, 6).map((t, i) => ({ track: t, key: t.uri + i }))} showAlbum />
         </section>
       )}
 
-      {recents.length > 8 && (
-        <Shelf title="Недавно слушали">
-          {recents.slice(8, 20).filter((r) => r.kind !== 'liked').map((r) => (
-            <MediaCard key={r.uri} title={r.title} sub={r.sub} image={r.image} uri={r.uri} route={{ name: r.kind as 'album', id: r.id }} round={r.kind === 'artist'} />
-          ))}
-        </Shelf>
-      )}
-
       {topArtists.data && topArtists.data.items.length > 0 && (
-        <Shelf title="Ваши исполнители сейчас">
+        <Shelf kicker="крутятся чаще всего" title="Ваши исполнители">
           {topArtists.data.items.slice(0, 12).map((a) => (
             <MediaCard key={a.id} title={a.name} sub="Исполнитель" image={img(a.images, 300)} uri={a.uri} route={{ name: 'artist', id: a.id }} round />
           ))}
@@ -104,7 +113,7 @@ export function Home() {
       )}
 
       {playlists.length > 0 && (
-        <Shelf title="Ваши плейлисты" action={<button className="link-btn" onClick={() => router.go({ name: 'library' })}>все</button>}>
+        <Shelf kicker="ваша полка" title="Плейлисты" action={<button className="link-btn" onClick={() => router.go({ name: 'library' })}>вся полка →</button>}>
           {playlists.slice(0, 12).map((p) => (
             <MediaCard key={p.id} title={p.name} sub={p.owner?.id === me?.id ? plural(playlistTotal(p), 'трек', 'трека', 'треков') : `от ${p.owner?.display_name}`}
               image={img(p.images, 300)} uri={p.uri} route={{ name: 'playlist', id: p.id }} />

@@ -5,6 +5,8 @@ import { libraryStore } from '../lib/library';
 import { useStore } from '../lib/store';
 import { router, ui } from '../lib/ui';
 import { bridge } from '../lib/bridge';
+import { settings } from '../lib/settings';
+import { fx } from '../lib/fx';
 import { img, artistsLine, type Album, type Artist, type Track } from '../lib/types';
 import { Cover } from './Cover';
 import { I } from './icons';
@@ -14,8 +16,8 @@ type Item = { id: string; group: string; title: string; sub?: string; image?: st
 const COMMANDS: Omit<Item, 'group'>[] = [
   { id: 'c-home', title: 'Главная', run: () => router.go({ name: 'home' }) },
   { id: 'c-liked', title: 'Любимые треки', run: () => router.go({ name: 'liked' }) },
-  { id: 'c-lib', title: 'Медиатека', run: () => router.go({ name: 'library' }) },
-  { id: 'c-stats', title: 'Статистика прослушиваний', run: () => router.go({ name: 'stats' }) },
+  { id: 'c-lib', title: 'Полка (плейлисты, альбомы, исполнители)', run: () => router.go({ name: 'library' }) },
+  { id: 'c-stats', title: 'Итоги прослушиваний', run: () => router.go({ name: 'stats' }) },
   { id: 'c-settings', title: 'Настройки', run: () => router.go({ name: 'settings' }) },
   { id: 'c-shuffle', title: 'Перемешать: вкл/выкл', run: controls.toggleShuffle },
   { id: 'c-repeat', title: 'Повтор: следующий режим', run: controls.cycleRepeat },
@@ -29,6 +31,11 @@ const COMMANDS: Omit<Item, 'group'>[] = [
   { id: 'c-sleept', title: 'Таймер сна: в конце трека', run: () => sleep.set('track') },
   { id: 'c-sleepoff', title: 'Таймер сна: выключить', run: () => sleep.set(null) },
   { id: 'c-keys', title: 'Горячие клавиши', run: () => ui.set({ shortcuts: true }) },
+  { id: 'c-winter', title: 'Тема: новогодняя', run: () => settings.set({ theme: 'winter' }) },
+  { id: 'c-classic', title: 'Тема: классическая', run: () => settings.set({ theme: 'classic' }) },
+  { id: 'c-snow', title: 'Снег: вкл/выкл', run: () => settings.set({ snow: !settings.get().snow }) },
+  { id: 'c-blizzard', title: 'Снег: метель', run: () => settings.set({ snow: true, snowLevel: 3 }) },
+  { id: 'c-fireworks', title: 'Салют!', run: () => fx.fireworks(10) },
 ];
 
 export function Palette() {

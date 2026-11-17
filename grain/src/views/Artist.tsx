@@ -58,7 +58,7 @@ export function ArtistView({ id }: { id: string }) {
 
   return (
     <div className="page">
-      <PageHeader image={img(a.images, 640)} round kind="Исполнитель" title={a.name}
+      <PageHeader image={img(a.images, 640)} uri={a.uri} round kind="Исполнитель" title={a.name}
         meta={a.genres?.length ? <span>{a.genres.slice(0, 3).join(' · ')}</span> : undefined} />
       <ActionBar playing={isCur && playing} onPlay={() => (isCur ? controls.toggle() : controls.playContext(a.uri))}
         onShuffle={async () => { if (!player.get().shuffle) await controls.toggleShuffle(); controls.playContext(a.uri); }}

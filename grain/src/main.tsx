@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/onest';
+import '@fontsource-variable/unbounded';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import './styles.css';

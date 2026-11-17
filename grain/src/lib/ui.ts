@@ -42,9 +42,9 @@ export const router = {
 
 // ── общее состояние интерфейса ──
 export type Panel = 'now' | 'lyrics' | 'queue' | null;
-const savedPanel = (localStorage.getItem('grain.panel') as Panel) || 'now';
+const savedPanel = (['now', 'lyrics', 'queue'].includes(localStorage.getItem('grain.panel') || '') ? localStorage.getItem('grain.panel') : 'now') as Panel;
 export const ui = createStore({
-  panel: savedPanel === ('null' as any) ? null : savedPanel as Panel,
+  panel: savedPanel,
   fullscreen: false,
   mini: false,
   palette: false,

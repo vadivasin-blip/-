@@ -1,28 +1,50 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
 import { bridge, isDesktop } from '../lib/bridge';
-import { nav, router, ui } from '../lib/ui';
+import { nav, router, ui, type Route } from '../lib/ui';
+import { auth } from '../lib/spotify';
+import { settings } from '../lib/settings';
+import { useTheme } from '../lib/season';
+import { Countdown } from './winter/Countdown';
 import { libraryStore } from '../lib/library';
 import { I } from './icons';
 import { Cover } from './Cover';
 import { img } from '../lib/types';
 
-export function TitleBar() {
-  const { canBack, canFwd } = useStore(nav, (s) => ({ canBack: s.index > 0, canFwd: s.index < s.stack.length - 1 }));
+const NAV: { r: Route; label: string; key: string }[] = [
+  { r: { name: 'home' }, label: 'Главная', key: '1' },
+  { r: { name: 'library' }, label: 'Полка', key: '2' },
+  { r: { name: 'search' }, label: 'Поиск', key: '3' },
+  { r: { name: 'stats' }, label: 'Итоги', key: '4' },
+];
+
+export function TopBar() {
+  const { canBack, canFwd, cur } = useStore(nav, (s) => ({ canBack: s.index > 0, canFwd: s.index < s.stack.length - 1, cur: s.stack[s.index] }));
   const me = useStore(libraryStore, (s) => s.me);
+  const theme = useTheme();
+  const showCountdown = useStore(settings, (s) => s.countdown);
+  const active = (r: Route) => cur.name === r.name || (r.name === 'library' && ['playlist', 'liked'].includes(cur.name));
   return (
-    <header className="titlebar">
+    <header className="topbar">
       <div className="tb-brand"><Logo /><span>Grain</span></div>
       <div className="tb-nav">
         <button className="icon-btn" disabled={!canBack} onClick={router.back} title="Назад (Alt+←)"><I.back size={17} /></button>
         <button className="icon-btn" disabled={!canFwd} onClick={router.forward} title="Вперёд (Alt+→)"><I.forward size={17} /></button>
       </div>
+      <nav className="tb-tabs">
+        {NAV.map((n) => (
+          <button key={n.r.name} className={active(n.r) ? 'on' : ''} onClick={() => router.go(n.r)} title={`Ctrl+${n.key}`}>{n.label}</button>
+        ))}
+      </nav>
+      <div className="tb-spacer" />
+      {auth.isDemo() && <span className="demo-badge" title="Выдуманные исполнители и обложки, нарисованные Grain. С аккаунтом всё берётся из Spotify">демо-данные</span>}
+      {theme === 'winter' && showCountdown && <Countdown />}
       <button className="tb-search" onClick={() => ui.set({ palette: true })}>
         <I.search size={15} />
-        <span>Поиск и команды</span>
+        <span>Найти</span>
         <kbd>Ctrl K</kbd>
       </button>
-      <div className="tb-spacer" />
+      <button className={`icon-btn ${cur.name === 'settings' ? 'on-solid' : ''}`} onClick={() => router.go({ name: 'settings' })} title="Настройки"><I.settings size={17} /></button>
       {me && (
         <button className="tb-user" onClick={() => router.go({ name: 'settings' })} title={me.display_name}>
           <Cover src={img(me.images, 40)} size={24} round />

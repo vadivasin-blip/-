@@ -5,16 +5,18 @@ import { router, ui, year } from '../lib/ui';
 import { img } from '../lib/types';
 import { bridge } from '../lib/bridge';
 import { usePosition } from '../lib/hooks';
-import { Cover } from './Cover';
 import { I } from './icons';
 import { LyricsView } from './LyricsView';
-import { Progress, Transport } from './PlayerBar';
-import { WindowControls } from './TitleBar';
+import { Transport } from './Controls';
+import { DeckTime } from './Deck';
+import { Turntable, Vinyl } from './Vinyl';
+import { WindowControls } from './TopBar';
 
 export function FullscreenNow() {
   const open = useStore(ui, (s) => s.fullscreen);
   const track = useStore(player, (s) => s.track);
   const liked = useStore(player, (s) => s.liked);
+  const playing = useStore(player, (s) => s.playing);
   const [lyrics, setLyrics] = useState(() => localStorage.getItem('grain.fs.lyrics') !== '0');
   const [osFull, setOsFull] = useState(false);
 
@@ -40,7 +42,7 @@ export function FullscreenNow() {
       {track ? (
         <div className="fn-body">
           <div className="fn-left">
-            <Cover src={img(track.album?.images, 640)} className="fn-cover" />
+            <div className="fn-deck"><Turntable src={img(track.album?.images, 640)} playing={playing} /></div>
             <div className="fn-meta">
               <div className="fn-text">
                 <div className="fn-title">{track.name}</div>
@@ -52,7 +54,7 @@ export function FullscreenNow() {
               </div>
               <button className={`icon-btn like ${liked ? 'on' : ''}`} onClick={controls.toggleLike}>{liked ? <I.heartFill size={22} /> : <I.heart size={22} />}</button>
             </div>
-            <Progress />
+            <DeckTime />
             <Transport />
           </div>
           {lyrics && <div className="fn-right"><LyricsView track={track} big /></div>}
@@ -64,11 +66,12 @@ export function FullscreenNow() {
 
 export function MiniPlayer() {
   const track = useStore(player, (s) => s.track);
+  const playing = useStore(player, (s) => s.playing);
   const liked = useStore(player, (s) => s.liked);
   const { pos, duration } = usePosition(4);
   return (
     <div className="mini">
-      <Cover src={img(track?.album?.images, 200)} className="mini-cover" />
+      <div className="mini-disc"><Vinyl src={img(track?.album?.images, 200)} spinning={playing} size={96} /></div>
       <div className="mini-main">
         <div className="mini-top">
           <div className="mini-text">

@@ -3,7 +3,7 @@ import { beginLogin } from '../lib/auth';
 import { settings } from '../lib/settings';
 import { bridge } from '../lib/bridge';
 import { copy } from '../lib/ui';
-import { Logo, WindowControls } from '../components/TitleBar';
+import { Logo, WindowControls } from '../components/TopBar';
 import { I } from '../components/icons';
 
 export function Login({ error, waiting }: { error?: string | null; waiting?: boolean }) {

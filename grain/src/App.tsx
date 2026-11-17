@@ -11,10 +11,12 @@ import { nav, router, ui } from './lib/ui';
 import { coverColor } from './lib/color';
 import { img } from './lib/types';
 import { initDesktop } from './lib/desktop';
-import { TitleBar } from './components/TitleBar';
-import { Sidebar } from './components/Sidebar';
-import { PlayerBar } from './components/PlayerBar';
-import { RightPanel } from './components/RightPanel';
+import { TopBar } from './components/TopBar';
+import { Deck } from './components/Deck';
+import { Snow } from './components/winter/Snow';
+import { Garland } from './components/winter/Garland';
+import { Drift } from './components/winter/Drift';
+import { useTheme } from './lib/season';
 import { ContextMenu, Shortcuts, Toasts } from './components/Overlays';
 import { Palette } from './components/Palette';
 import { AddToPlaylist } from './components/AddToPlaylist';
@@ -74,18 +76,17 @@ export function App() {
   useShortcuts(status === 'in');
 
   if (status === 'boot') return <div className="boot" />;
-  if (status === 'out') return <Login error={loginError} />;
-  if (mini) return <MiniPlayer />;
+  if (status === 'out') return <><Login error={loginError} /><Winter mini={false} /></>;
+  if (mini) return <><MiniPlayer /><Winter mini /></>;
 
   return (
     <div className="app">
-      <TitleBar />
-      <div className="body">
-        <Sidebar />
+      <TopBar />
+      <div className="stage">
+        <Deck />
         <Main />
-        <RightPanel />
       </div>
-      <PlayerBar />
+      <Winter mini={false} />
       <FullscreenNow />
       <Palette />
       <AddToPlaylist />
@@ -93,6 +94,20 @@ export function App() {
       <ContextMenu />
       <Toasts />
     </div>
+  );
+}
+
+/** Новогодние украшения поверх интерфейса. */
+function Winter({ mini }: { mini: boolean }) {
+  const theme = useTheme();
+  const s = useStore(settings, (x) => ({ snow: x.snow, level: x.snowLevel, garland: x.garland, drift: x.drift }));
+  if (theme !== 'winter') return null;
+  return (
+    <>
+      <Snow enabled={s.snow} level={mini ? 1 : s.level} />
+      {s.garland && !mini && <Garland />}
+      {s.drift && !mini && <Drift />}
+    </>
   );
 }
 
@@ -132,7 +147,9 @@ function useAccent() {
 
 function useGrain() {
   const on = useStore(settings, (s) => s.grain);
+  const theme = useTheme();
   useEffect(() => { document.documentElement.classList.toggle('grain', on); }, [on]);
+  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
 }
 
 function useShortcuts(enabled: boolean) {
@@ -150,11 +167,11 @@ function useShortcuts(enabled: boolean) {
       if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); router.forward(); return; }
       if (ctrl && ['1', '2', '3', '4'].includes(k)) {
         e.preventDefault();
-        router.go([{ name: 'home' }, { name: 'search' }, { name: 'library' }, { name: 'stats' }][Number(k) - 1] as any);
+        router.go([{ name: 'home' }, { name: 'library' }, { name: 'search' }, { name: 'stats' }][Number(k) - 1] as any);
         return;
       }
-      if (ctrl && k === 'l') { e.preventDefault(); ui.set({ panel: u.panel === 'lyrics' ? null : 'lyrics' }); return; }
-      if (ctrl && k === 'q') { e.preventDefault(); ui.set({ panel: u.panel === 'queue' ? null : 'queue' }); return; }
+      if (ctrl && k === 'l') { e.preventDefault(); ui.set({ panel: u.panel === 'lyrics' ? 'now' : 'lyrics' }); return; }
+      if (ctrl && k === 'q') { e.preventDefault(); ui.set({ panel: u.panel === 'queue' ? 'now' : 'queue' }); return; }
       if (ctrl && k === 'm') { e.preventDefault(); bridge.setMini(true); return; }
       if (ctrl && e.key === 'ArrowRight') { e.preventDefault(); controls.next(); return; }
       if (ctrl && e.key === 'ArrowLeft') { e.preventDefault(); controls.prev(); return; }
