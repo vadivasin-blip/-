@@ -1,0 +1,44 @@
+name: Grain — веб-версия (GitHub Pages)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'grain/**'
+      - '.github/workflows/grain-web.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: grain-web
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: grain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: grain/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      # сайт живёт по адресу https://<user>.github.io/<repo>/
+      - run: npx vite build
+        env:
+          GRAIN_BASE: /${{ github.event.repository.name }}/
+      - run: touch dist/.nojekyll
+      - name: Публикация в ветку gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: grain/dist
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: 'Grain web build'
