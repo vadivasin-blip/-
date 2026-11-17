@@ -1,0 +1,31 @@
+name: Grain — сборка для Windows
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'grain/**'
+      - '.github/workflows/grain-windows.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: grain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: grain/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Grain-Windows
+          path: |
+            grain/release/*.exe
+          if-no-files-found: error

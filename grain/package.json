@@ -1,0 +1,83 @@
+{
+  "name": "grain",
+  "productName": "Grain",
+  "version": "1.0.0",
+  "description": "Grain — десктопный плеер для Spotify",
+  "author": "Grain",
+  "license": "MIT",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build:ui": "vite build",
+    "start": "npm run build:ui && electron .",
+    "dist:win": "npm run build:ui && electron-builder --win --x64",
+    "typecheck": "tsc --noEmit",
+    "dist:win:linux": "bash scripts/build-win-on-linux.sh"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@fontsource-variable/onest": "5.2.5",
+    "@fontsource/jetbrains-mono": "5.2.5",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "@vitejs/plugin-react": "4.6.0",
+    "electron": "https://github.com/castlabs/electron-releases#v44.10.1+wvcus",
+    "electron-builder": "26.0.12",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "typescript": "5.8.3",
+    "vite": "6.3.5"
+  },
+  "build": {
+    "appId": "app.grain.player",
+    "productName": "Grain",
+    "copyright": "Grain",
+    "electronDownload": {
+      "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "build/icon.png",
+      "build/tray.png",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Grain",
+      "artifactName": "Grain-Setup-${version}.exe",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "Grain-${version}-portable.exe"
+    },
+    "afterPack": "build/vmp-sign.cjs",
+    "publish": null
+  }
+}

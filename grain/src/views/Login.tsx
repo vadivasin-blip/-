@@ -1,0 +1,60 @@
+import { useEffect, useState } from 'react';
+import { beginLogin } from '../lib/auth';
+import { settings } from '../lib/settings';
+import { bridge } from '../lib/bridge';
+import { copy } from '../lib/ui';
+import { Logo, WindowControls } from '../components/TitleBar';
+import { I } from '../components/icons';
+
+export function Login({ error, waiting }: { error?: string | null; waiting?: boolean }) {
+  const [clientId, setClientId] = useState(settings.get().clientId);
+  const [redirect, setRedirect] = useState('http://127.0.0.1:43117/callback');
+  const [started, setStarted] = useState(false);
+  useEffect(() => { bridge.info().then((i) => setRedirect(i.redirectUri)); }, []);
+  const valid = /^[0-9a-f]{32}$/i.test(clientId.trim());
+
+  const go = () => {
+    const id = clientId.trim();
+    settings.set({ clientId: id });
+    setStarted(true);
+    beginLogin(id);
+  };
+
+  return (
+    <div className="login">
+      <div className="login-drag"><WindowControls /></div>
+      <div className="login-card">
+        <div className="login-brand"><Logo size={30} /><span>Grain</span></div>
+        <p className="login-lead">Плеер для вашей библиотеки Spotify. Нужен аккаунт Premium и собственный ключ приложения — это займёт пару минут, один раз.</p>
+
+        <ol className="steps">
+          <li>
+            <b>Создайте приложение</b> на{' '}
+            <a onClick={() => bridge.openExternal('https://developer.spotify.com/dashboard')}>developer.spotify.com/dashboard</a>
+            {' '}— «Create app», любое название.
+          </li>
+          <li>
+            <b>Redirect URI</b> — вставьте ровно этот адрес:
+            <button className="copy-field" onClick={() => copy(redirect, 'Адрес скопирован')}>
+              <code>{redirect}</code><I.link size={14} />
+            </button>
+          </li>
+          <li><b>APIs used</b> — отметьте «Web API» и «Web Playback SDK», сохраните.</li>
+          <li><b>Скопируйте Client ID</b> со страницы приложения и вставьте сюда:</li>
+        </ol>
+
+        <form onSubmit={(e) => { e.preventDefault(); if (valid) go(); }} className="login-form">
+          <input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Client ID — 32 символа" spellCheck={false} autoFocus className="mono" />
+          <button className="btn primary" disabled={!valid}>Войти через Spotify</button>
+        </form>
+
+        {(started || waiting) && !error && <div className="login-note"><span className="spinner" /> Подтвердите вход в открывшемся браузере, потом вернитесь сюда.</div>}
+        {error && <div className="login-note err">{error}</div>}
+        <div className="login-foot">
+          <span>Ключ и токены хранятся только на этом компьютере, в зашифрованном виде.</span>
+          <a onClick={() => (location.search = '?demo')}>Посмотреть интерфейс на демо-данных</a>
+        </div>
+      </div>
+    </div>
+  );
+}
