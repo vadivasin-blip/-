@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
-import { beginLogin } from '../lib/auth';
+import { beginLogin, parseCallback } from '../lib/auth';
 import { settings } from '../lib/settings';
 import { bridge } from '../lib/bridge';
 import { copy } from '../lib/ui';
 import { Logo, WindowControls } from '../components/TopBar';
 import { I } from '../components/icons';
 
-export function Login({ error, waiting }: { error?: string | null; waiting?: boolean }) {
+type Cb = { code: string | null; state: string | null; error: string | null };
+
+export function Login({ error, waiting, onCallback }: { error?: string | null; waiting?: boolean; onCallback: (v: Cb) => void }) {
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const [pasted, setPasted] = useState('');
+  const [pasteErr, setPasteErr] = useState<string | null>(null);
   const [clientId, setClientId] = useState(settings.get().clientId);
   const [redirect, setRedirect] = useState('http://127.0.0.1:43117/callback');
   const [started, setStarted] = useState(false);
@@ -17,7 +22,7 @@ export function Login({ error, waiting }: { error?: string | null; waiting?: boo
     const id = clientId.trim();
     settings.set({ clientId: id });
     setStarted(true);
-    beginLogin(id);
+    beginLogin(id).then(setAuthUrl);
   };
 
   return (
@@ -50,6 +55,33 @@ export function Login({ error, waiting }: { error?: string | null; waiting?: boo
 
         {(started || waiting) && !error && <div className="login-note"><span className="spinner" /> Подтвердите вход в открывшемся браузере, потом вернитесь сюда.</div>}
         {error && <div className="login-note err">{error}</div>}
+
+        {authUrl && (
+          <div className="login-manual">
+            <b>Браузер не открылся или вход не завершается?</b>
+            <ol>
+              <li>
+                Скопируйте ссылку входа и откройте её в браузере, где Spotify работает:
+                <button className="btn" onClick={() => copy(authUrl, 'Ссылка входа скопирована')}><I.link size={14} /> Скопировать ссылку входа</button>
+              </li>
+              <li>
+                После подтверждения браузер попытается открыть адрес <code>127.0.0.1:43117/callback?code=…</code>.
+                Если страница не открылась (так будет на телефоне), скопируйте этот адрес из адресной строки целиком и вставьте сюда:
+              </li>
+            </ol>
+            <form className="login-form" onSubmit={(e) => {
+              e.preventDefault();
+              const cb = parseCallback(pasted);
+              if (!cb) { setPasteErr('В адресе нет кода входа. Нужна ссылка, которая начинается с http://127.0.0.1:43117/callback?code='); return; }
+              setPasteErr(null);
+              onCallback(cb);
+            }}>
+              <input value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="http://127.0.0.1:43117/callback?code=…" spellCheck={false} className="mono" />
+              <button className="btn primary" disabled={!pasted.trim()}>Готово</button>
+            </form>
+            {pasteErr && <div className="login-note err">{pasteErr}</div>}
+          </div>
+        )}
         <div className="login-foot">
           <span>Ключ и токены хранятся только на этом компьютере, в зашифрованном виде.</span>
           <a onClick={() => (location.search = '?demo')}>Посмотреть интерфейс на демо-данных</a>

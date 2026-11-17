@@ -50,12 +50,14 @@ export function App() {
     bridge.getSecret().then((s: Session | null) => {
       if (s?.refresh) { auth.set(s); setStatus('in'); } else setStatus('out');
     });
-    return bridge.onAuth(async ({ code, state, error }) => {
-      if (error || !code) { setLoginError(error === 'access_denied' ? 'Вы отменили вход.' : `Spotify вернул ошибку: ${error}`); return; }
-      try { const s = await finishLogin(code, state); auth.set(s); setLoginError(null); setStatus('in'); }
-      catch (e) { setLoginError((e as Error).message); }
-    });
+    return bridge.onAuth(handleCallback);
   }, []);
+
+  async function handleCallback({ code, state, error }: { code: string | null; state: string | null; error: string | null }) {
+    if (error || !code) { setLoginError(error === 'access_denied' ? 'Вы отменили вход.' : `Spotify вернул ошибку: ${error}`); return; }
+    try { const s = await finishLogin(code, state); auth.set(s); setLoginError(null); setStatus('in'); }
+    catch (e) { setLoginError((e as Error).message); }
+  }
 
   useEffect(() => {
     if (status !== 'in') return;
@@ -76,7 +78,7 @@ export function App() {
   useShortcuts(status === 'in');
 
   if (status === 'boot') return <div className="boot" />;
-  if (status === 'out') return <><Login error={loginError} /><Winter mini={false} /></>;
+  if (status === 'out') return <><Login error={loginError} onCallback={handleCallback} /><Winter mini={false} /></>;
   if (mini) return <><MiniPlayer /><Winter mini /></>;
 
   return (

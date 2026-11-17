@@ -31,20 +31,38 @@ export async function beginLogin(clientId: string) {
     client_id: clientId, response_type: 'code', redirect_uri: redirectUri,
     code_challenge_method: 'S256', code_challenge: challenge, scope: SCOPES, state,
   });
-  bridge.openExternal(`https://accounts.spotify.com/authorize?${q}`);
+  const url = `https://accounts.spotify.com/authorize?${q}`;
+  bridge.openExternal(url);
+  return url;
+}
+
+/** Разбор адреса, на который Spotify перекинул после входа (для ручной вставки). */
+export function parseCallback(text: string): { code: string | null; state: string | null; error: string | null } | null {
+  const m = text.trim().match(/[?&]code=([^&\s#]+)/);
+  const st = text.trim().match(/[?&]state=([^&\s#]+)/);
+  const er = text.trim().match(/[?&]error=([^&\s#]+)/);
+  if (!m && !er) return null;
+  return { code: m ? decodeURIComponent(m[1]) : null, state: st ? decodeURIComponent(st[1]) : null, error: er ? decodeURIComponent(er[1]) : null };
+}
+
+const NETWORK_MSG = 'Компьютер не может связаться с серверами Spotify (accounts.spotify.com). Похоже, Spotify недоступен в этой сети: включите VPN на компьютере (для всей системы, не только в браузере) и попробуйте снова.';
+async function tokenRequest(body: URLSearchParams) {
+  try {
+    return await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
+    });
+  } catch {
+    throw new Error(NETWORK_MSG);
+  }
 }
 
 export async function finishLogin(code: string, state: string | null): Promise<Session> {
   const p = pending ?? JSON.parse(sessionStorage.getItem('grain.pkce') || 'null');
-  if (!p || p.state !== state) throw new Error('Сессия входа устарела — нажмите «Войти» ещё раз.');
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code', code, redirect_uri: p.redirect,
-      client_id: p.clientId, code_verifier: p.verifier,
-    }),
-  });
+  if (!p || p.state !== state) throw new Error('Эта ссылка от другой попытки входа. Нажмите «Войти через Spotify» ещё раз и используйте новую ссылку.');
+  const res = await tokenRequest(new URLSearchParams({
+    grant_type: 'authorization_code', code, redirect_uri: p.redirect,
+    client_id: p.clientId, code_verifier: p.verifier,
+  }));
   const j = await res.json();
   if (!res.ok) throw new Error(j.error_description || j.error || 'Не удалось получить токен');
   pending = null;
@@ -55,11 +73,7 @@ export async function finishLogin(code: string, state: string | null): Promise<S
 }
 
 export async function refreshSession(s: Session): Promise<Session> {
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: s.refresh, client_id: s.clientId }),
-  });
+  const res = await tokenRequest(new URLSearchParams({ grant_type: 'refresh_token', refresh_token: s.refresh, client_id: s.clientId }));
   const j = await res.json();
   if (!res.ok) {
     const err = new Error(j.error_description || 'refresh failed') as Error & { fatal?: boolean };

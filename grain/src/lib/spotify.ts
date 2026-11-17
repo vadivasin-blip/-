@@ -45,7 +45,9 @@ export async function request<T = any>(method: string, path: string, opts: Opts 
   if (demoHandler) return demoHandler(method, path, q, opts.body);
   const url = path.startsWith('http') ? new URL(path) : new URL(BASE + path);
   for (const [k, v] of Object.entries(q)) url.searchParams.set(k, String(v));
-  const res = await fetch(url, {
+  let res: Response;
+  try {
+    res = await fetch(url, {
     method,
     headers: {
       Authorization: `Bearer ${await token()}`,
@@ -53,6 +55,9 @@ export async function request<T = any>(method: string, path: string, opts: Opts 
     },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
+  } catch {
+    throw new ApiError(0, 'Нет связи с серверами Spotify. Проверьте интернет или включите VPN для всего компьютера.');
+  }
   const retry = opts.retry ?? 0;
   if (res.status === 429 && retry < 4) {
     const wait = Math.min(Number(res.headers.get('Retry-After') || 1), 20) * 1000;

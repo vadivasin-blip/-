@@ -699,3 +699,9 @@ code { font: 12px var(--mono); }
   .tb-tabs button { padding: 0 11px; }
 }
 @media (max-width: 1150px) { .demo-badge { display: none; } }
+
+.login-manual { margin-top: 22px; padding: 16px 18px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-2); color: var(--text-2); }
+.login-manual b { color: var(--text); }
+.login-manual ol { margin: 10px 0 12px; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; line-height: 1.5; }
+.login-manual .btn { margin-top: 8px; }
+.login-manual code { color: var(--text); }
