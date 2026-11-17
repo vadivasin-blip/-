@@ -120,7 +120,9 @@ let syncTimer: number | undefined;
 let lastSyncErr = 0;
 export async function sync() {
   try {
+    const t0 = performance.now();
     const st = await api.player();
+    const rtt = performance.now() - t0;
     const s = player.get();
     if (!st) {
       if (!isLocal()) player.set({ device: null, playing: false });
@@ -130,10 +132,16 @@ export async function sync() {
     const localActive = st.device?.id && st.device.id === s.sdkDeviceId;
     const patch: Partial<PlayerState> = { device: st.device ?? null };
     if (!localActive) {
+      // учитываем задержку сети и не дёргаем позицию из-за мелкого расхождения —
+      // иначе подсветка текста прыгает при каждом опросе
+      const reported = (st.progress_ms ?? 0) + (st.is_playing ? rtt / 2 : 0);
+      const predicted = positionNow(s);
+      const sameTrack = s.track?.uri === st.item?.uri && s.playing === !!st.is_playing;
+      const keep = sameTrack && Math.abs(predicted - reported) < 280;
       Object.assign(patch, {
-        track: st.item ?? null,
+        track: sameTrack ? s.track : st.item ?? null,
         playing: !!st.is_playing,
-        position: st.progress_ms ?? 0,
+        position: keep ? predicted : reported,
         stamp: performance.now(),
         duration: st.item?.duration_ms ?? 0,
         shuffle: !!st.shuffle_state,

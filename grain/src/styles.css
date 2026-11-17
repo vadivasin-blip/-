@@ -563,13 +563,28 @@ code { font: 12px var(--mono); }
 .lyrics.big.size-m p { font-size: 26px; }
 .lyrics.big.size-l p { font-size: 34px; }
 .lyrics.big.size-xl p { font-size: 42px; }
-.lyrics.synced p:hover { color: var(--text-2); }
-.lyrics.synced p.past { color: color-mix(in srgb, var(--text-3) 75%, var(--bg)); }
-.lyrics.synced p.on { color: var(--text); }
-.lyrics.synced p.gap { font-size: 16px !important; letter-spacing: .3em; }
+.lyrics.synced p { color: var(--text-3); filter: blur(var(--blur, 0px)); transition: color .35s, filter .45s, opacity .45s; }
+.lyrics.synced p:hover { color: var(--text-2); filter: none; }
+.lyrics.synced p.past { color: color-mix(in srgb, var(--text-3) 85%, var(--bg)); }
+.lyrics.synced p.on { color: var(--text); filter: none; }
+/* пословная заливка: мягкая кромка идёт по слову от начала к концу */
+.lyrics.synced p.on .w {
+  --p: 0;
+  background: linear-gradient(90deg, var(--text) calc(var(--p) * 124% - 24%), color-mix(in srgb, var(--text-3) 90%, transparent) calc(var(--p) * 124%));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lyrics.synced p.gap { padding: 14px 0; }
+.gap-dots { display: inline-flex; gap: 7px; }
+.gap-dots i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .5; }
+.lyrics.synced p.gap.on .gap-dots i { animation: dotpulse 1.4s ease-in-out infinite; }
+.lyrics.synced p.gap.on .gap-dots i:nth-child(2) { animation-delay: .2s; }
+.lyrics.synced p.gap.on .gap-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes dotpulse { 0%, 100% { opacity: .3; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
 .lyrics.plain { padding-top: 20px; padding-bottom: 40px; mask-image: none; }
 .lyrics.plain p { color: var(--text-2); cursor: text; }
-.lyr-pad { height: 38%; }
+.lyr-pad { height: 55%; }
+.lyr-pad.top { height: 30%; }
+.lyr-tools .chip.snap { color: var(--text); border-color: var(--accent); }
 .lyr-tools { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-top: 1px solid var(--line); font-size: 11.5px; }
 .lyr-tools .chip { height: 22px; padding: 0 8px; font-size: 11px; }
 .lyr-tools .mono { min-width: 40px; text-align: center; color: var(--text-2); }

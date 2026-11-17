@@ -1,10 +1,11 @@
 import type { Track } from './types';
 
-export type Line = { t: number; text: string };
+export type Word = { t: number; text: string };
+export type Line = { t: number; text: string; words?: Word[] };
 export type Lyrics = { synced: Line[] | null; plain: string | null; instrumental: boolean; source?: string };
 
 const cache = new Map<string, Promise<Lyrics | null>>();
-const STORE = 'grain.lyrics.v1';
+const STORE = 'grain.lyrics.v2';
 let disk: Record<string, Lyrics | null> = {};
 try { disk = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch {}
 const saveDisk = () => {
@@ -18,10 +19,19 @@ export function parseLrc(lrc: string): Line[] {
   for (const raw of lrc.split(/\r?\n/)) {
     const tags = [...raw.matchAll(/\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g)];
     if (!tags.length) continue;
-    const text = raw.replace(/\[[^\]]*\]/g, '').trim();
+    const body = raw.replace(/\[[^\]]*\]/g, '');
+    // расширенный LRC: <мм:сс.xx> перед словами — точное время каждого слова
+    const stamps = [...body.matchAll(/<(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?>([^<]*)/g)];
+    const text = body.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    let words: Word[] | undefined;
+    if (stamps.length >= 2) {
+      words = stamps
+        .map((m) => ({ t: Number(m[1]) * 60000 + Number(m[2]) * 1000 + (m[3] ? Number(m[3].padEnd(3, '0')) : 0), text: m[4].trim() }))
+        .filter((w) => w.text);
+    }
     for (const m of tags) {
       const frac = m[3] ? Number(m[3].padEnd(3, '0')) : 0;
-      out.push({ t: Number(m[1]) * 60000 + Number(m[2]) * 1000 + frac, text });
+      out.push({ t: Number(m[1]) * 60000 + Number(m[2]) * 1000 + frac, text, words });
     }
   }
   return out.sort((a, b) => a.t - b.t);
@@ -76,4 +86,53 @@ export const offsets = {
 
 export function demoLyrics(lines: [number, string][]): Lyrics {
   return { synced: lines.map(([t, text]) => ({ t, text })), plain: null, instrumental: false, source: 'демо' };
+}
+
+// ── пословная разметка времени ─────────────────────────────────────────────
+export type TimedWord = { text: string; t0: number; t1: number };
+export type TimedLine = { t: number; end: number; text: string; words: TimedWord[]; exact: boolean };
+
+const VOWELS = /[аеёиоуыэюяaeiouyäöüéèàáíóúæøå]/gi;
+const syllables = (w: string) => {
+  const n = (w.match(VOWELS) || []).length;
+  return n || (/[\p{L}\p{N}]/u.test(w) ? 1 : 0.3);
+};
+
+/**
+ * Если в тексте нет пословных меток, оцениваем их сами: длительность слова ~ числу слогов,
+ * а темп пения (мс на слог) берём медианой по всей песне. Так подсветка заканчивается
+ * вместе с пением, а не растягивается на проигрыш перед следующей строкой.
+ */
+export function buildTimeline(lines: Line[], songEnd: number): TimedLine[] {
+  const gaps: number[] = [];
+  lines.forEach((l, i) => {
+    const next = lines[i + 1]?.t ?? songEnd;
+    const syl = l.text.split(/\s+/).reduce((a, w) => a + syllables(w), 0);
+    const gap = next - l.t;
+    if (syl >= 3 && gap > 400 && gap < 9000) gaps.push(gap / syl);
+  });
+  gaps.sort((a, b) => a - b);
+  // медиана, сдвинутая вниз: промежутки обычно включают паузы после строки
+  const perSyl = Math.min(420, Math.max(110, gaps.length ? gaps[Math.floor(gaps.length * 0.35)] : 230));
+
+  return lines.map((l, i) => {
+    const next = lines[i + 1]?.t ?? Math.min(songEnd, l.t + 8000);
+    const gap = Math.max(200, next - l.t);
+    if (l.words?.length) {
+      const ws = l.words.map((w, j) => ({ text: w.text, t0: w.t, t1: l.words![j + 1]?.t ?? Math.min(next, w.t + Math.max(250, syllables(w.text) * perSyl)) }));
+      return { t: l.t, end: next, text: l.text, words: ws, exact: true };
+    }
+    const parts = l.text.split(/\s+/).filter(Boolean);
+    const weights = parts.map((w) => syllables(w) + 0.25);
+    const total = weights.reduce((a, b) => a + b, 0) || 1;
+    const sung = Math.min(gap * 0.94, Math.max(500, total * perSyl * 1.1));
+    let acc = l.t;
+    const words = parts.map((w, j) => {
+      const d = (weights[j] / total) * sung;
+      const tw = { text: w, t0: acc, t1: acc + d };
+      acc += d;
+      return tw;
+    });
+    return { t: l.t, end: next, text: l.text, words, exact: false };
+  });
 }
