@@ -10,6 +10,7 @@ import { Cover } from '../components/Cover';
 import { img } from '../lib/types';
 import { I } from '../components/icons';
 import { useTheme } from '../lib/season';
+import { update, updates } from '../lib/updates';
 import { fx } from '../lib/fx';
 
 export function SettingsView() {
@@ -119,6 +120,8 @@ export function SettingsView() {
         </div>
       </section>
 
+      {isDesktop && <UpdatesSection />}
+
       <section className="set-group">
         <h3>Данные</h3>
         <div className="set-row">
@@ -135,6 +138,42 @@ export function SettingsView() {
         {info && !info.widevine && isDesktop && <> · сборка без Widevine</>}
       </div>
     </div>
+  );
+}
+
+function UpdatesSection() {
+  const u = useStore(updates, (x) => x);
+  const status = {
+    idle: 'Проверка ещё не запускалась',
+    dev: 'В режиме разработки обновления отключены',
+    checking: 'Проверяю…',
+    latest: 'У вас последняя версия',
+    available: `Доступна версия ${u.version}`,
+    downloading: `Скачиваю версию ${u.version ?? ''} — ${u.percent ?? 0}%`,
+    ready: `Версия ${u.version} скачана — осталось перезапустить`,
+    error: `Не получилось: ${u.error ?? 'ошибка'}`,
+  }[u.state];
+  return (
+    <section className="set-group">
+      <h3>Обновления</h3>
+      <div className="set-row">
+        <div className="grow"><b>Grain {u.current ?? ''}</b><small>{status}</small></div>
+        {u.state === 'available' && <button className="btn primary" onClick={update.download}>{u.portable ? 'Скачать с GitHub' : `Обновить до ${u.version}`}</button>}
+        {u.state === 'ready' && <button className="btn primary" onClick={update.install}>Перезапустить и обновить</button>}
+        {u.state === 'downloading' && <span className="upd-bar"><i style={{ width: `${u.percent ?? 0}%` }} /></span>}
+        {['idle', 'latest', 'error'].includes(u.state) && <button className="btn" onClick={update.check}>Проверить обновления</button>}
+        {u.state === 'checking' && <span className="spinner" />}
+      </div>
+      {u.notes && ['available', 'downloading', 'ready'].includes(u.state) && (
+        <div className="upd-notes">
+          <div className="section-label">Что нового в {u.version}</div>
+          <pre>{u.notes.trim()}</pre>
+        </div>
+      )}
+      <div className="set-row">
+        <div className="grow"><small>Grain сам проверяет обновления при запуске и раз в 6 часов. Установка занимает несколько секунд, настройки и вход сохраняются.</small></div>
+      </div>
+    </section>
   );
 }
 

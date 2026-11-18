@@ -28,5 +28,10 @@ contextBridge.exposeInMainWorld('grain', {
   onNav: on('nav'),
   onMini: on('win:mini'),
   onFlyout: on('flyout:state'),
+  getUpdate: () => ipcRenderer.invoke('update:get'),
+  checkUpdate: () => ipcRenderer.send('update:check'),
+  downloadUpdate: () => ipcRenderer.send('update:download'),
+  installUpdate: () => ipcRenderer.send('update:install'),
+  onUpdate: on('update:state'),
   flyoutCmd: (c) => ipcRenderer.send('flyout:cmd', c),
 });

@@ -196,6 +196,57 @@ function applyThumbar(t) {
 }
 
 // ── трей ──────────────────────────────────────────────────────────────────
+// ── обновления: новая версия с GitHub прямо из программы ─────────────────
+let updater = null;
+let updateState = { state: 'idle' };
+const isPortable = !!process.env.PORTABLE_EXECUTABLE_DIR;
+const RELEASES = 'https://github.com/vadivasin-blip/-/releases/latest';
+
+function setUpdate(s) {
+  updateState = { ...updateState, ...s };
+  send('update:state', updateState);
+  updateTrayMenu(lastInfo);
+}
+function notesText(n) {
+  if (!n) return '';
+  if (Array.isArray(n)) return n.map((x) => x.note || '').join('\n');
+  return String(n).replace(/<[^>]+>/g, '');
+}
+function initUpdater() {
+  if (!app.isPackaged) { updateState = { state: 'dev' }; return; }
+  try { updater = require('electron-updater').autoUpdater; } catch (e) { updateState = { state: 'error', error: 'Модуль обновлений недоступен' }; return; }
+  // адрес обновлений задан явно — не зависим от app-update.yml внутри сборки
+  updater.setFeedURL({ provider: 'generic', url: 'https://github.com/vadivasin-blip/-/releases/latest/download', channel: 'latest' });
+  updater.autoDownload = false;
+  updater.autoInstallOnAppQuit = true;
+  updater.allowPrerelease = false;
+  updater.on('checking-for-update', () => setUpdate({ state: 'checking', error: null }));
+  updater.on('update-available', (i) => setUpdate({ state: 'available', version: i.version, notes: notesText(i.releaseNotes), portable: isPortable }));
+  updater.on('update-not-available', () => setUpdate({ state: 'latest', checkedAt: Date.now() }));
+  updater.on('download-progress', (p) => setUpdate({ state: 'downloading', percent: Math.round(p.percent || 0) }));
+  updater.on('update-downloaded', (i) => setUpdate({ state: 'ready', version: i.version }));
+  updater.on('error', (e) => setUpdate({ state: 'error', error: (e && e.message ? e.message : String(e)).split('\n')[0].slice(0, 200) }));
+  // первая проверка через 8 секунд после запуска, дальше раз в 6 часов
+  setTimeout(() => checkUpdate(), 8000);
+  setInterval(() => checkUpdate(), 6 * 3600 * 1000);
+}
+function checkUpdate() {
+  if (!updater) return;
+  if (['downloading', 'ready'].includes(updateState.state)) return;
+  updater.checkForUpdates().catch(() => {});
+}
+function downloadUpdate() {
+  if (!updater) return;
+  if (isPortable) { shell.openExternal(RELEASES); return; }  // портативную версию просто перекачать
+  setUpdate({ state: 'downloading', percent: 0 });
+  updater.downloadUpdate().catch(() => {});
+}
+function installUpdate() {
+  if (!updater || updateState.state !== 'ready') return;
+  quitting = true;
+  setImmediate(() => updater.quitAndInstall(true, true)); // тихая установка и сразу запуск новой версии
+}
+
 let flyout = null;
 let lastInfo = null;
 let flyoutHiddenAt = 0;
@@ -256,6 +307,14 @@ function updateTrayMenu(info) {
       { label: 'Снег', type: 'checkbox', checked: !!i.snow, click: cmd('snow') },
     ] },
     { type: 'separator' },
+    { type: 'separator' },
+    updateState.state === 'ready'
+      ? { label: `Перезапустить и обновить до ${updateState.version}`, click: installUpdate }
+      : updateState.state === 'available'
+        ? { label: `Обновить до ${updateState.version}`, click: () => { showWindow(); downloadUpdate(); } }
+        : updateState.state === 'downloading'
+          ? { label: `Обновление скачивается… ${updateState.percent || 0}%`, enabled: false }
+          : { label: 'Проверить обновления', enabled: !!updater, click: checkUpdate },
     { label: 'Открыть Grain', click: () => { hideFlyout(); showWindow(); } },
     { label: 'Выход', click: () => { quitting = true; app.quit(); } },
   ]));
@@ -344,6 +403,10 @@ function ipc() {
   ipcMain.on('win:max', () => { if (!win) return; win.isMaximized() ? win.unmaximize() : win.maximize(); });
   ipcMain.handle('win:isMax', () => !!win && win.isMaximized());
   ipcMain.on('thumbar', (_e, t) => applyThumbar(t));
+  ipcMain.handle('update:get', () => ({ ...updateState, portable: isPortable, version: updateState.version, current: app.getVersion() }));
+  ipcMain.on('update:check', () => checkUpdate());
+  ipcMain.on('update:download', () => downloadUpdate());
+  ipcMain.on('update:install', () => installUpdate());
   ipcMain.on('flyout:cmd', (_e, c) => {
     if (c === 'open') { hideFlyout(); showWindow(); return; }
     if (c === 'mini') { hideFlyout(); showWindow(); setMini(true); return; }
@@ -388,6 +451,7 @@ app.whenReady().then(async () => {
   createWindow();
   buildTray();
   applyHotkeys();
+  initUpdater();
 });
 
 app.on('before-quit', () => { quitting = true; });

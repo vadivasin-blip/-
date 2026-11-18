@@ -1,7 +1,7 @@
 {
   "name": "grain",
   "productName": "Grain",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Grain — десктопный плеер для Spotify",
   "author": "Grain",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "dev": "vite",
     "build:ui": "vite build",
     "start": "npm run build:ui && electron .",
-    "dist:win": "npm run build:ui && electron-builder --win --x64",
+    "dist:win": "npm run build:ui && electron-builder --win --x64 --publish never",
     "typecheck": "tsc --noEmit",
     "dist:win:linux": "bash scripts/build-win-on-linux.sh"
   },
@@ -70,14 +70,24 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "Grain",
-      "artifactName": "Grain-Setup-${version}.exe",
+      "artifactName": "Grain-Setup.exe",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "Grain-${version}-portable.exe"
+      "artifactName": "Grain-portable.exe"
     },
     "afterPack": "build/vmp-sign.cjs",
-    "publish": null
+    "publish": {
+      "provider": "generic",
+      "url": "https://github.com/vadivasin-blip/-/releases/latest/download",
+      "channel": "latest"
+    },
+    "releaseInfo": {
+      "releaseNotesFile": "build/release-notes.md"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "6.6.2"
   }
 }

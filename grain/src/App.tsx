@@ -11,6 +11,7 @@ import { nav, router, ui } from './lib/ui';
 import { coverColor } from './lib/color';
 import { img } from './lib/types';
 import { initDesktop } from './lib/desktop';
+import { initUpdates } from './lib/updates';
 import { TopBar } from './components/TopBar';
 import { Deck } from './components/Deck';
 import { Snow } from './components/winter/Snow';
@@ -76,6 +77,7 @@ export function App() {
 
   useEffect(() => {
     initDesktop();
+    initUpdates();
     const offNav = bridge.onNav((d) => (d === 'back' ? router.back() : router.forward()));
     const offMini = bridge.onMini((on) => ui.set({ mini: on }));
     return () => { offNav(); offMini(); };

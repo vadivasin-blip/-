@@ -20,6 +20,16 @@ export type GrainBridge = {
   onMini: (cb: (on: boolean) => void) => () => void;
   onFlyout: (cb: (info: NowInfo | null) => void) => () => void;
   flyoutCmd: (c: string) => void;
+  getUpdate: () => Promise<UpdateState>;
+  checkUpdate: () => void;
+  downloadUpdate: () => void;
+  installUpdate: () => void;
+  onUpdate: (cb: (s: UpdateState) => void) => () => void;
+};
+
+export type UpdateState = {
+  state: 'idle' | 'dev' | 'checking' | 'latest' | 'available' | 'downloading' | 'ready' | 'error';
+  version?: string; current?: string; notes?: string; percent?: number; error?: string | null; portable?: boolean; checkedAt?: number;
 };
 
 /** То, что главное окно сообщает трею и мини-панели. */
@@ -44,6 +54,7 @@ export const bridge: GrainBridge = window.grain ?? {
   setMini: () => {}, minimize: () => {}, close: () => {}, setFullscreen: (on) => { (on ? document.documentElement.requestFullscreen?.() : document.exitFullscreen?.())?.catch?.(() => {}); }, toggleMax: () => {}, isMaximized: async () => false, onWinState: noop,
   thumbar: () => {}, nowPlaying: () => {},
   onAuth: noop, onMedia: noop, onNav: noop, onMini: noop, onFlyout: noop, flyoutCmd: () => {},
+  getUpdate: async () => ({ state: 'dev' }), checkUpdate: () => {}, downloadUpdate: () => {}, installUpdate: () => {}, onUpdate: noop,
 };
 
 export const isDesktop = !!window.grain;

@@ -26,13 +26,11 @@ jobs:
           cache-dependency-path: grain/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+      # что нового — попадёт в latest.yml и покажется в окне обновления внутри Grain
+      - run: node scripts/release-notes.cjs "$(node -p "require('./package.json').version")" --plain > build/release-notes.md
       - run: npm run dist:win
       - id: ver
         run: echo "v=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
-      # постоянные имена — чтобы ссылка /releases/latest/download/… не менялась между версиями
-      - run: |
-          cp "release/Grain-Setup-${{ steps.ver.outputs.v }}.exe" release/Grain-Setup.exe
-          cp "release/Grain-${{ steps.ver.outputs.v }}-portable.exe" release/Grain-portable.exe
       - uses: actions/upload-artifact@v4
         with:
           name: Grain-Windows
@@ -48,9 +46,12 @@ jobs:
           target_commitish: ${{ github.sha }}
           make_latest: true
           body_path: grain/release/notes.md
+          # latest.yml и blockmap нужны встроенному обновлению Grain
           files: |
             grain/release/Grain-Setup.exe
+            grain/release/Grain-Setup.exe.blockmap
             grain/release/Grain-portable.exe
+            grain/release/latest.yml
       # описания всех вышедших версий — из CHANGELOG.md (правка старого раздела тоже попадёт на GitHub)
       - name: Описания всех релизов
         env:

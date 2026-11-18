@@ -6,6 +6,7 @@ import { auth } from '../lib/spotify';
 import { settings } from '../lib/settings';
 import { useTheme } from '../lib/season';
 import { Countdown } from './winter/Countdown';
+import { UpdatePill } from './UpdatePill';
 import { libraryStore } from '../lib/library';
 import { I } from './icons';
 import { Cover } from './Cover';
@@ -37,6 +38,7 @@ export function TopBar() {
         ))}
       </nav>
       <div className="tb-spacer" />
+      <UpdatePill />
       {auth.isDemo() && <span className="demo-badge" title="Выдуманные исполнители и обложки, нарисованные Grain. С аккаунтом всё берётся из Spotify">демо-данные</span>}
       {theme === 'winter' && showCountdown && <Countdown />}
       <button className="tb-search" onClick={() => ui.set({ palette: true })}>
