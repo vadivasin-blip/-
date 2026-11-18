@@ -27,4 +27,6 @@ contextBridge.exposeInMainWorld('grain', {
   onMedia: on('media'),
   onNav: on('nav'),
   onMini: on('win:mini'),
+  onFlyout: on('flyout:state'),
+  flyoutCmd: (c) => ipcRenderer.send('flyout:cmd', c),
 });

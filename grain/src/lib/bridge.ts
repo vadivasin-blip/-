@@ -13,11 +13,20 @@ export type GrainBridge = {
   isMaximized: () => Promise<boolean>;
   onWinState: (cb: (s: { maximized: boolean }) => void) => () => void;
   thumbar: (t: { playing: boolean; icons: Record<string, string> }) => void;
-  nowPlaying: (info: { title?: string; artist?: string; playing: boolean; progress?: number } | null) => void;
+  nowPlaying: (info: NowInfo | null) => void;
   onAuth: (cb: (v: { code: string | null; state: string | null; error: string | null }) => void) => () => void;
   onMedia: (cb: (cmd: string) => void) => () => void;
   onNav: (cb: (dir: 'back' | 'forward') => void) => () => void;
   onMini: (cb: (on: boolean) => void) => () => void;
+  onFlyout: (cb: (info: NowInfo | null) => void) => () => void;
+  flyoutCmd: (c: string) => void;
+};
+
+/** То, что главное окно сообщает трею и мини-панели. */
+export type NowInfo = {
+  title?: string; artist?: string; cover?: string; playing: boolean; progress?: number;
+  position?: number; duration?: number; liked?: boolean; shuffle?: boolean; repeat?: string;
+  volume?: number; muted?: boolean; sleep?: number | 'track' | null; theme?: string; snow?: boolean; accent?: string;
 };
 
 declare global { interface Window { grain?: GrainBridge } }
@@ -34,7 +43,7 @@ export const bridge: GrainBridge = window.grain ?? {
   openExternal: (url) => window.open(url, '_blank'),
   setMini: () => {}, minimize: () => {}, close: () => {}, setFullscreen: (on) => { (on ? document.documentElement.requestFullscreen?.() : document.exitFullscreen?.())?.catch?.(() => {}); }, toggleMax: () => {}, isMaximized: async () => false, onWinState: noop,
   thumbar: () => {}, nowPlaying: () => {},
-  onAuth: noop, onMedia: noop, onNav: noop, onMini: noop,
+  onAuth: noop, onMedia: noop, onNav: noop, onMini: noop, onFlyout: noop, flyoutCmd: () => {},
 };
 
 export const isDesktop = !!window.grain;

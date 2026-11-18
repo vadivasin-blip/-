@@ -196,28 +196,100 @@ function applyThumbar(t) {
 }
 
 // ── трей ──────────────────────────────────────────────────────────────────
+let flyout = null;
+let lastInfo = null;
+let flyoutHiddenAt = 0;
+
 function buildTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, '..', 'build', 'tray.png'));
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
   tray.setToolTip('Grain');
   updateTrayMenu(null);
-  tray.on('click', () => (win && win.isVisible() && win.isFocused() ? win.hide() : showWindow()));
+  // левый клик — мини-панель с обложкой и кнопками, двойной — окно Grain, правый — меню
+  tray.on('click', () => toggleFlyout());
+  tray.on('double-click', () => { hideFlyout(); showWindow(); });
 }
+
 function updateTrayMenu(info) {
   if (!tray) return;
-  const now = info && info.title ? `${info.title} — ${info.artist}` : 'Ничего не играет';
-  tray.setToolTip(info && info.title ? `Grain · ${now}`.slice(0, 127) : 'Grain');
+  const i = info || {};
+  const now = i.title ? `${i.title} — ${i.artist}` : 'Ничего не играет';
+  tray.setToolTip(i.title ? `Grain · ${now}`.slice(0, 127) : 'Grain');
+  const cmd = (c) => () => send('media', c);
+  const vol = Math.round(i.volume ?? 70);
+  const sleep = i.sleep;
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: now.length > 60 ? now.slice(0, 59) + '…' : now, enabled: false },
     { type: 'separator' },
-    { label: info && info.playing ? 'Пауза' : 'Играть', click: () => send('media', 'toggle') },
-    { label: 'Следующий', click: () => send('media', 'next') },
-    { label: 'Предыдущий', click: () => send('media', 'prev') },
+    { label: i.playing ? 'Пауза' : 'Играть', click: cmd('toggle') },
+    { label: 'Следующий трек', click: cmd('next') },
+    { label: 'Предыдущий трек', click: cmd('prev') },
+    { label: 'Нравится', type: 'checkbox', checked: !!i.liked, enabled: !!i.title, click: cmd('like') },
     { type: 'separator' },
+    { label: 'Перемешать', type: 'checkbox', checked: !!i.shuffle, click: cmd('shuffle') },
+    { label: 'Повтор', submenu: [
+      { label: 'Выключен', type: 'radio', checked: !i.repeat || i.repeat === 'off', click: cmd('repeat:off') },
+      { label: 'Весь список', type: 'radio', checked: i.repeat === 'context', click: cmd('repeat:context') },
+      { label: 'Один трек', type: 'radio', checked: i.repeat === 'track', click: cmd('repeat:track') },
+    ] },
+    { label: `Громкость — ${i.muted ? 'без звука' : vol + '%'}`, submenu: [
+      { label: 'Громче', click: cmd('volup') },
+      { label: 'Тише', click: cmd('voldown') },
+      { type: 'separator' },
+      ...[100, 75, 50, 25].map((v) => ({ label: v + '%', type: 'radio', checked: !i.muted && Math.abs(vol - v) < 3, click: cmd('vol:' + v) })),
+      { label: 'Без звука', type: 'checkbox', checked: !!i.muted, click: cmd('mute') },
+    ] },
+    { label: sleep ? `Таймер сна — ${sleep === 'track' ? 'в конце трека' : sleep + ' мин'}` : 'Таймер сна', submenu: [
+      ...[15, 30, 45, 60, 90].map((m) => ({ label: m + ' минут', click: cmd('sleep:' + m) })),
+      { label: 'В конце трека', click: cmd('sleep:track') },
+      { type: 'separator' },
+      { label: 'Выключить', enabled: !!sleep, click: cmd('sleep:off') },
+    ] },
+    { type: 'separator' },
+    { label: 'Текст песни', click: () => { hideFlyout(); showWindow(); send('media', 'lyrics'); } },
     { label: 'Мини-плеер', type: 'checkbox', checked: miniMode, click: () => { showWindow(); setMini(!miniMode); } },
-    { label: 'Открыть Grain', click: showWindow },
+    { label: 'Оформление', submenu: [
+      { label: 'Новогодняя тема', type: 'radio', checked: i.theme === 'winter', click: cmd('theme:winter') },
+      { label: 'Классика', type: 'radio', checked: i.theme === 'classic', click: cmd('theme:classic') },
+      { label: 'По сезону', type: 'radio', checked: i.theme === 'auto', click: cmd('theme:auto') },
+      { type: 'separator' },
+      { label: 'Снег', type: 'checkbox', checked: !!i.snow, click: cmd('snow') },
+    ] },
+    { type: 'separator' },
+    { label: 'Открыть Grain', click: () => { hideFlyout(); showWindow(); } },
     { label: 'Выход', click: () => { quitting = true; app.quit(); } },
   ]));
+}
+
+// ── мини-панель у значка в трее ───────────────────────────────────────────
+const FW = 360, FH = 172;
+function createFlyout() {
+  flyout = new BrowserWindow({
+    width: FW, height: FH, show: false, frame: false, resizable: false, movable: false,
+    minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true, alwaysOnTop: true,
+    backgroundColor: '#0c1427', roundedCorners: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  flyout.loadURL((DEV_URL || ORIGIN) + '/?flyout');
+  flyout.on('blur', () => hideFlyout());
+  flyout.on('closed', () => { flyout = null; });
+  flyout.webContents.on('did-finish-load', () => lastInfo && flyout && flyout.webContents.send('flyout:state', lastInfo));
+}
+function hideFlyout() {
+  if (flyout && flyout.isVisible()) { flyout.hide(); flyoutHiddenAt = Date.now(); }
+}
+function toggleFlyout() {
+  if (!flyout) createFlyout();
+  if (flyout.isVisible()) return hideFlyout();
+  if (Date.now() - flyoutHiddenAt < 250) return; // клик по значку сам закрыл панель через blur
+  const cur = screen.getCursorScreenPoint();
+  const wa = screen.getDisplayNearestPoint(cur).workArea;
+  const x = Math.round(Math.min(Math.max(cur.x - FW / 2, wa.x + 8), wa.x + wa.width - FW - 8));
+  const y = cur.y > wa.y + wa.height / 2 ? wa.y + wa.height - FH - 10 : wa.y + 10;
+  flyout.setBounds({ x, y, width: FW, height: FH });
+  if (lastInfo) flyout.webContents.send('flyout:state', lastInfo);
+  flyout.show();
+  flyout.focus();
 }
 
 // ── глобальные горячие клавиши ────────────────────────────────────────────
@@ -272,7 +344,14 @@ function ipc() {
   ipcMain.on('win:max', () => { if (!win) return; win.isMaximized() ? win.unmaximize() : win.maximize(); });
   ipcMain.handle('win:isMax', () => !!win && win.isMaximized());
   ipcMain.on('thumbar', (_e, t) => applyThumbar(t));
+  ipcMain.on('flyout:cmd', (_e, c) => {
+    if (c === 'open') { hideFlyout(); showWindow(); return; }
+    if (c === 'mini') { hideFlyout(); showWindow(); setMini(true); return; }
+    send('media', c);
+  });
   ipcMain.on('nowplaying', (_e, info) => {
+    lastInfo = info;
+    if (flyout && !flyout.isDestroyed()) flyout.webContents.send('flyout:state', info);
     updateTrayMenu(info);
     if (win) win.setTitle(info && info.title ? `${info.title} — ${info.artist}` : 'Grain');
     if (win && process.platform === 'win32' && info) {

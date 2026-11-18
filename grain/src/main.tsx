@@ -5,5 +5,8 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import './styles.css';
 import { App } from './App';
+import { TrayFlyout } from './components/TrayFlyout';
 
-createRoot(document.getElementById('root')!).render(<App />);
+// ?flyout — мини-панель у значка в трее (отдельное маленькое окно)
+const flyout = new URLSearchParams(location.search).has('flyout');
+createRoot(document.getElementById('root')!).render(flyout ? <TrayFlyout /> : <App />);

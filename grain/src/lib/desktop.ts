@@ -1,7 +1,9 @@
 /* Интеграция с ОС: Media Session (SMTC в Windows), кнопки на миниатюре панели задач, трей, уведомления. */
 import { bridge, isDesktop } from './bridge';
-import { controls, player, positionNow } from './player';
-import { settings } from './settings';
+import { controls, player, positionNow, sleep, type Repeat } from './player';
+import { settings, type ThemeMode } from './settings';
+import { resolveTheme } from './season';
+import { ui } from './ui';
 import { img, artistsLine } from './types';
 
 function drawIcon(kind: 'play' | 'pause' | 'prev' | 'next') {
@@ -59,12 +61,28 @@ export function initDesktop() {
   });
 
   function sendNow() {
-    const s = player.get();
-    bridge.nowPlaying(s.track ? {
-      title: s.track.name, artist: artistsLine(s.track.artists), playing: s.playing,
-      progress: s.duration ? positionNow(s) / s.duration : undefined,
-    } : null);
+    const s = player.get(), st = settings.get();
+    const pos = positionNow(s);
+    bridge.nowPlaying({
+      title: s.track?.name, artist: s.track ? artistsLine(s.track.artists) : undefined, cover: img(s.track?.album?.images, 300),
+      playing: s.playing, progress: s.duration ? pos / s.duration : undefined, position: pos, duration: s.duration,
+      liked: !!s.liked, shuffle: s.shuffle, repeat: s.repeat, volume: s.volume, muted: s.muted,
+      sleep: s.sleepAt ? Math.max(1, Math.round((s.sleepAt - Date.now()) / 60000)) : s.sleepEndOfTrack ? 'track' : null,
+      theme: st.theme, snow: st.snow, accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+    });
   }
+  // трей и мини-панель узнают о любых изменениях: лайк, повтор, громкость, таймер, тема
+  let sig = '';
+  const changed = () => {
+    const s = player.get(), st = settings.get();
+    const k = [s.liked, s.shuffle, s.repeat, s.volume, s.muted, s.sleepAt, s.sleepEndOfTrack, st.theme, st.snow, resolveTheme(st.theme)].join('|');
+    if (k !== sig) { sig = k; sendNow(); }
+  };
+  player.subscribe(changed);
+  settings.subscribe(changed);
+  // при перемотке мини-панель должна сразу узнать новую позицию
+  let lastPos = 0;
+  player.subscribe(() => { const p = player.get().position; if (Math.abs(p - lastPos) > 1500) { lastPos = p; sendNow(); } else lastPos = p; });
   // прогресс трека на кнопке в панели задач
   if (isDesktop) setInterval(() => { if (player.get().playing) sendNow(); }, 3000);
 
@@ -75,5 +93,18 @@ export function initDesktop() {
     else if (cmd === 'volup') controls.setVolume(player.get().volume + 5);
     else if (cmd === 'voldown') controls.setVolume(player.get().volume - 5);
     else if (cmd === 'like') controls.toggleLike();
+    else if (cmd === 'shuffle') controls.toggleShuffle();
+    else if (cmd.startsWith('repeat:')) setRepeat(cmd.slice(7) as Repeat);
+    else if (cmd.startsWith('vol:')) controls.setVolume(Number(cmd.slice(4)));
+    else if (cmd === 'mute') controls.toggleMute();
+    else if (cmd.startsWith('seek:')) controls.seek(Number(cmd.slice(5)));
+    else if (cmd.startsWith('sleep:')) { const v = cmd.slice(6); sleep.set(v === 'off' ? null : v === 'track' ? 'track' : Number(v)); }
+    else if (cmd.startsWith('theme:')) settings.set({ theme: cmd.slice(6) as ThemeMode });
+    else if (cmd === 'snow') settings.set({ snow: !settings.get().snow });
+    else if (cmd === 'lyrics') ui.set({ fullscreen: true });
   });
+  // повтор ставим нужный режим, проходя цикл выкл → список → трек
+  async function setRepeat(mode: Repeat) {
+    for (let i = 0; i < 3 && player.get().repeat !== mode; i++) await controls.cycleRepeat();
+  }
 }
