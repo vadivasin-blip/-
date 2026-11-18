@@ -100,7 +100,7 @@ export function DeckTime() {
   return (
     <div className="deck-time mono">
       <span>{fmt(pos)}</span>
-      <i />
+      <Progress bare />
       <span>{fmt(duration)}</span>
     </div>
   );

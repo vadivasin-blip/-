@@ -42,7 +42,7 @@ export function Turntable({ src, playing, interactive = true }: { src?: string; 
     const r = ref.current!.getBoundingClientRect();
     const x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
     const d = Math.hypot(x, y) / (r.width / 2);
-    return d > 0.86 && d < 1.02;
+    return d > 0.74 && d < 1.08;
   };
 
   const R = 48.5, C = 2 * Math.PI * R;

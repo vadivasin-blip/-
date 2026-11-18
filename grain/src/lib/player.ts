@@ -117,6 +117,8 @@ export function activateElement() { try { sdkPlayer?.activateElement?.(); } catc
 
 // ── синхронизация с /me/player ─────────────────────────────────────────────
 let syncTimer: number | undefined;
+/** После перемотки Spotify ещё пару секунд может отдавать старую позицию — не откатываемся назад. */
+let seekGuard = 0;
 let lastSyncErr = 0;
 export async function sync() {
   try {
@@ -137,7 +139,7 @@ export async function sync() {
       const reported = (st.progress_ms ?? 0) + (st.is_playing ? rtt / 2 : 0);
       const predicted = positionNow(s);
       const sameTrack = s.track?.uri === st.item?.uri && s.playing === !!st.is_playing;
-      const keep = sameTrack && Math.abs(predicted - reported) < 280;
+      const keep = sameTrack && (Math.abs(predicted - reported) < 280 || performance.now() < seekGuard);
       Object.assign(patch, {
         track: sameTrack ? s.track : st.item ?? null,
         playing: !!st.is_playing,
@@ -283,10 +285,15 @@ export const controls = {
   },
   async seek(ms: number) {
     const s = player.get();
-    const clamped = Math.max(0, Math.min(s.duration - 500, ms));
-    player.set({ position: clamped, stamp: performance.now() });
-    if (isLocal() && sdkPlayer) return sdkPlayer.seek(clamped);
-    await run(() => api.seek(clamped, targetDevice()));
+    if (!s.duration) return;
+    // Spotify принимает только целые миллисекунды
+    const target = Math.round(Math.max(0, Math.min(s.duration - 500, ms)));
+    player.set({ position: target, stamp: performance.now() });
+    seekGuard = performance.now() + 2000;
+    if (isLocal() && sdkPlayer) {
+      try { await sdkPlayer.seek(target); return; } catch { /* встроенный плеер не принял — пробуем через API */ }
+    }
+    await run(() => api.seek(target, targetDevice()));
   },
   seekBy(deltaMs: number) { controls.seek(positionNow() + deltaMs); },
   setVolume: (() => {
