@@ -79,7 +79,7 @@ export function Turntable({ src, playing, interactive = true }: { src?: string; 
   );
 }
 
-function Tonearm({ angle }: { angle: number }) {
+export function Tonearm({ angle }: { angle: number }) {
   return (
     <svg className="tonearm" viewBox="0 0 60 200" style={{ transform: `rotate(${angle}deg)` }} aria-hidden>
       <circle cx="30" cy="22" r="17" className="arm-base" />

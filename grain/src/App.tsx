@@ -31,6 +31,7 @@ import { ArtistView } from './views/Artist';
 import { StatsView } from './views/Stats';
 import { SettingsView } from './views/Settings';
 import { Login } from './views/Login';
+import { Landing } from './views/Landing';
 
 type Status = 'boot' | 'out' | 'in';
 const DEMO = new URLSearchParams(location.search).has('demo');
@@ -38,6 +39,8 @@ const DEMO = new URLSearchParams(location.search).has('demo');
 export function App() {
   const [status, setStatus] = useState<Status>('boot');
   const [loginError, setLoginError] = useState<string | null>(null);
+  // в браузере новый посетитель сначала видит страницу о Grain, а не форму входа
+  const [showLogin, setShowLogin] = useState(() => isDesktop || /[?&](code|error|login)=?/.test(location.search));
   const mini = useStore(ui, (s) => s.mini);
 
   useEffect(() => {
@@ -88,7 +91,8 @@ export function App() {
   useShortcuts(status === 'in');
 
   if (status === 'boot') return <div className="boot" />;
-  if (status === 'out') return <><Login error={loginError} onCallback={handleCallback} /><Winter mini={false} /></>;
+  if (status === 'out' && !showLogin) return <Landing onOpenPlayer={() => setShowLogin(true)} />;
+  if (status === 'out') return <><Login error={loginError} onCallback={handleCallback} onBack={isDesktop ? undefined : () => setShowLogin(false)} /><Winter mini={false} /></>;
   if (mini) return <><MiniPlayer /><Winter mini /></>;
 
   return (

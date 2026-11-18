@@ -8,7 +8,7 @@ import { I } from '../components/icons';
 
 type Cb = { code: string | null; state: string | null; error: string | null };
 
-export function Login({ error, waiting, onCallback }: { error?: string | null; waiting?: boolean; onCallback: (v: Cb) => void }) {
+export function Login({ error, waiting, onCallback, onBack }: { error?: string | null; waiting?: boolean; onCallback: (v: Cb) => void; onBack?: () => void }) {
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [pasted, setPasted] = useState('');
   const [pasteErr, setPasteErr] = useState<string | null>(null);
@@ -29,6 +29,7 @@ export function Login({ error, waiting, onCallback }: { error?: string | null; w
     <div className="login">
       <div className="login-drag"><WindowControls /></div>
       <div className="login-card">
+        {onBack && <button className="link-btn login-back" onClick={onBack}>← о Grain</button>}
         <div className="login-brand"><Logo size={30} /><span>Grain</span></div>
         <p className="login-lead">Плеер для вашей библиотеки Spotify. Нужен аккаунт Premium и собственный ключ приложения — это займёт пару минут, один раз.</p>
 

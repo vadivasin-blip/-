@@ -11,7 +11,7 @@ const FIREWORK_HUES = [42, 8, 140, 205, 320, 50];
  * Снег на canvas: скорость зависит от воспроизведения (на паузе снег почти замирает),
  * ветер — от движения мыши, клик выбивает облачко снежинок. Здесь же рисуется салют.
  */
-export function Snow({ level, enabled }: { level: 1 | 2 | 3; enabled: boolean }) {
+export function Snow({ level, enabled, steady }: { level: 1 | 2 | 3; enabled: boolean; steady?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export function Snow({ level, enabled }: { level: 1 | 2 | 3; enabled: boolean })
       ctx.clearRect(0, 0, w, h);
 
       // на паузе снег почти замирает — «время остановилось»
-      const want = player.get().playing ? 1 : 0.18;
+      const want = steady || player.get().playing ? 1 : 0.18;
       speed += (want - speed) * Math.min(1, dt * 1.5);
       windTarget *= 1 - Math.min(1, dt * 0.8);
       wind += (windTarget - wind) * Math.min(1, dt * 2);
@@ -153,7 +153,7 @@ export function Snow({ level, enabled }: { level: 1 | 2 | 3; enabled: boolean })
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerdown', onClick);
     };
-  }, [level, enabled]);
+  }, [level, enabled, steady]);
 
   return <canvas ref={ref} className="snow-canvas" aria-hidden />;
 }
