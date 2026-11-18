@@ -38,6 +38,8 @@ jobs:
           name: Grain-Windows
           path: grain/release/Grain-Setup.exe
           if-no-files-found: error
+      # описание релиза — раздел этой версии из CHANGELOG.md (нет раздела — сборка падает, чтобы версия не вышла без описания)
+      - run: node scripts/release-notes.cjs "${{ steps.ver.outputs.v }}" > release/notes.md
       - name: Публикация релиза
         uses: softprops/action-gh-release@v2
         with:
@@ -45,10 +47,19 @@ jobs:
           name: Grain ${{ steps.ver.outputs.v }}
           target_commitish: ${{ github.sha }}
           make_latest: true
-          body: |
-            Плеер для Spotify в виде проигрывателя винила, с новогодней темой.
-            **Grain-Setup.exe** — установщик, **Grain-portable.exe** — запуск без установки.
-            Первый запуск: см. README в папке grain (нужен свой Client ID Spotify и Premium).
+          body_path: grain/release/notes.md
           files: |
             grain/release/Grain-Setup.exe
             grain/release/Grain-portable.exe
+      # описания всех вышедших версий — из CHANGELOG.md (правка старого раздела тоже попадёт на GitHub)
+      - name: Описания всех релизов
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for v in $(node scripts/release-notes.cjs --list); do
+            if gh release view "grain-v$v" >/dev/null 2>&1; then
+              node scripts/release-notes.cjs "$v" > "release/notes-$v.md"
+              gh release edit "grain-v$v" --notes-file "release/notes-$v.md"
+              echo "обновлено grain-v$v"
+            fi
+          done
