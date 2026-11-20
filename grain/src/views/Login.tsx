@@ -4,6 +4,7 @@ import { settings } from '../lib/settings';
 import { bridge, isDesktop } from '../lib/bridge';
 import { copy } from '../lib/ui';
 import { Logo, WindowControls } from '../components/TopBar';
+import { NetworkPanel } from '../components/NetworkPanel';
 import { I } from '../components/icons';
 
 type Cb = { code: string | null; state: string | null; error: string | null };
@@ -12,6 +13,9 @@ export function Login({ error, waiting, onCallback, onBack }: { error?: string |
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [pasted, setPasted] = useState('');
   const [pasteErr, setPasteErr] = useState<string | null>(null);
+  const [netOpen, setNetOpen] = useState(false);
+  const [netErr, setNetErr] = useState<string | null>(null);
+  useEffect(() => bridge.onAuthNetError((e) => { setNetErr(`Страница входа Spotify не открылась (${e.desc || e.code}).`); setNetOpen(true); }), []);
   const [clientId, setClientId] = useState(settings.get().clientId);
   const [redirect, setRedirect] = useState('http://127.0.0.1:43117/callback');
   const [started, setStarted] = useState(false);
@@ -54,16 +58,25 @@ export function Login({ error, waiting, onCallback, onBack }: { error?: string |
           <button className="btn primary" disabled={!valid}>Войти через Spotify</button>
         </form>
 
-        {(started || waiting) && !error && <div className="login-note"><span className="spinner" /> {isDesktop ? "Подтвердите вход в открывшемся браузере, потом вернитесь сюда." : "Переходим на страницу входа Spotify…"}</div>}
+        {(started || waiting) && !error && <div className="login-note"><span className="spinner" /> {isDesktop ? "Подтвердите вход в открывшемся окне Spotify — после этого Grain откроется сам." : "Переходим на страницу входа Spotify…"}</div>}
         {error && <div className="login-note err">{error}</div>}
+
+        {isDesktop && (
+          <div className="login-net">
+            <button className="link-btn" onClick={() => setNetOpen(!netOpen)}>{netOpen ? '▾' : '▸'} Spotify не открывается? Настройки сети и прокси</button>
+            {netErr && <div className="login-note err">{netErr} Включите VPN или укажите его прокси ниже, сохраните и нажмите «Войти» ещё раз.</div>}
+            {netOpen && <NetworkPanel compact />}
+          </div>
+        )}
 
         {authUrl && isDesktop && (
           <div className="login-manual">
             <b>Браузер не открылся или вход не завершается?</b>
             <ol>
               <li>
-                Скопируйте ссылку входа и откройте её в браузере, где Spotify работает:
-                <button className="btn" onClick={() => copy(authUrl, 'Ссылка входа скопирована')}><I.link size={14} /> Скопировать ссылку входа</button>
+                Окно входа не открылось? Откройте вход в браузере или скопируйте ссылку туда, где Spotify работает:
+                <button className="btn" onClick={() => copy(authUrl, 'Ссылка входа скопирована')}><I.link size={14} /> Скопировать ссылку входа</button>{' '}
+                <button className="btn" onClick={() => bridge.openExternal(authUrl)}>Открыть в браузере</button>
               </li>
               <li>
                 После подтверждения браузер попытается открыть адрес <code>127.0.0.1:43117/callback?code=…</code>.

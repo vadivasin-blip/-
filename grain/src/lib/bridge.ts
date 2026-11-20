@@ -1,8 +1,11 @@
 export type GrainBridge = {
   getSecret: () => Promise<any>;
   setSecret: (v: any) => Promise<boolean>;
-  getPrefs: () => Promise<{ closeToTray: boolean; globalHotkeys: boolean }>;
-  setPrefs: (p: Partial<{ closeToTray: boolean; globalHotkeys: boolean }>) => Promise<any>;
+  getPrefs: () => Promise<Prefs>;
+  setPrefs: (p: Partial<Prefs>) => Promise<any>;
+  testNetwork: () => Promise<NetTest>;
+  openAuth: (url: string) => void;
+  onAuthNetError: (cb: (e: { code: number; desc: string; url: string }) => void) => () => void;
   info: () => Promise<{ version: string; redirectUri: string; platform: string; widevine: boolean }>;
   openExternal: (url: string) => void;
   setMini: (on: boolean) => void;
@@ -27,6 +30,11 @@ export type GrainBridge = {
   onUpdate: (cb: (s: UpdateState) => void) => () => void;
 };
 
+export type ProxyPrefs = { mode: 'system' | 'direct' | 'custom'; type: 'socks5' | 'http' | 'socks4'; host: string; port: string };
+export type Prefs = { closeToTray: boolean; globalHotkeys: boolean; proxy?: ProxyPrefs };
+type Probe = { ok: boolean; status?: number; ms?: number; error?: string };
+export type NetTest = { accounts: Probe; api: Probe; via: any };
+
 export type UpdateState = {
   state: 'idle' | 'dev' | 'checking' | 'latest' | 'available' | 'downloading' | 'ready' | 'error';
   version?: string; current?: string; notes?: string; percent?: number; error?: string | null; portable?: boolean; checkedAt?: number;
@@ -47,6 +55,9 @@ export const bridge: GrainBridge = window.grain ?? {
   getSecret: async () => { try { return JSON.parse(localStorage.getItem('grain.secret') || 'null'); } catch { return null; } },
   setSecret: async (v) => { v == null ? localStorage.removeItem('grain.secret') : localStorage.setItem('grain.secret', JSON.stringify(v)); return true; },
   getPrefs: async () => ({ closeToTray: false, globalHotkeys: true }),
+  testNetwork: async () => ({ accounts: { ok: true }, api: { ok: true }, via: null }),
+  openAuth: (url) => window.open(url, '_blank'),
+  onAuthNetError: noop,
   setPrefs: async (p) => p,
   // веб-версия: Spotify возвращает на корень сайта, адрес вычисляется из того, где открыт плеер
   info: async () => ({ version: 'web', redirectUri: location.origin + import.meta.env.BASE_URL, platform: 'web', widevine: true }),

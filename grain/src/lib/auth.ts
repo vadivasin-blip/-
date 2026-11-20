@@ -33,7 +33,8 @@ export async function beginLogin(clientId: string) {
   });
   const url = `https://accounts.spotify.com/authorize?${q}`;
   // в браузере уходим на Spotify в этой же вкладке и возвращаемся обратно на сайт
-  if (isDesktop) bridge.openExternal(url); else location.assign(url);
+  // в программе вход открывается в окне Grain — через тот же прокси, браузер не нужен
+  if (isDesktop) bridge.openAuth(url); else location.assign(url);
   return url;
 }
 

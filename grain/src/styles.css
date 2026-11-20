@@ -826,3 +826,21 @@ a.btn.primary { color: var(--accent-ink); }
   .ld-extra { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 520px) { .ld-extra { grid-template-columns: 1fr; } .btn.big { width: 100%; justify-content: center; } }
+
+/* ─── сеть и прокси ─── */
+.netpanel { display: flex; flex-direction: column; gap: 12px; padding: 14px 0; }
+.netpanel.compact { margin-top: 10px; padding: 14px 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-2); }
+.net-fields { display: flex; align-items: center; gap: 8px; }
+.net-fields input, .net-fields select { height: 36px; padding: 0 12px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px; outline: 0; color: var(--text); }
+.net-fields input:focus { border-color: var(--text-3); }
+.net-fields input { width: 160px; }
+.net-fields input.port { width: 90px; }
+.net-fields select option { background: var(--bg-3); }
+.net-hint { margin: 0; color: var(--text-2); font-size: 12.5px; line-height: 1.5; }
+.net-actions { display: flex; gap: 10px; }
+.net-results { display: flex; flex-direction: column; gap: 6px; }
+.net-res { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
+.net-res.ok > span:first-child { color: var(--ok); }
+.net-res.bad > span:first-child { color: var(--danger); }
+.login-net { margin-top: 18px; }
+.login-net .link-btn { font-size: 12.5px; }

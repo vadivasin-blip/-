@@ -11,6 +11,7 @@ import { img } from '../lib/types';
 import { I } from '../components/icons';
 import { useTheme } from '../lib/season';
 import { update, updates } from '../lib/updates';
+import { NetworkPanel } from '../components/NetworkPanel';
 import { fx } from '../lib/fx';
 
 export function SettingsView() {
@@ -119,6 +120,14 @@ export function SettingsView() {
           <button className="btn" onClick={() => ui.set({ shortcuts: true })}><I.keyboard size={15} /> Показать</button>
         </div>
       </section>
+
+      {isDesktop && (
+        <section className="set-group">
+          <h3>Сеть</h3>
+          <div className="set-row"><div className="grow"><b>Как Grain выходит в интернет</b><small>Если Spotify не открывается, пустите Grain через прокси вашего VPN-клиента.</small></div></div>
+          <NetworkPanel />
+        </section>
+      )}
 
       {isDesktop && <UpdatesSection />}
 

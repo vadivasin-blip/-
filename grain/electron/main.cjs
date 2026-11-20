@@ -26,7 +26,69 @@ let tray = null;
 let quitting = false;
 let miniMode = false;
 let normalBounds = null;
-let prefs = { closeToTray: false, globalHotkeys: true };
+let prefs = { closeToTray: false, globalHotkeys: true, proxy: { mode: 'system', type: 'socks5', host: '127.0.0.1', port: '' } };
+
+// ── сеть: весь трафик Grain можно пустить через прокси VPN-клиента ────────
+// system — как в Windows (по умолчанию), direct — напрямую, custom — свой адрес HTTP/SOCKS5.
+function proxyConfig(p) {
+  if (!p || p.mode === 'system') return { mode: 'system' };
+  if (p.mode === 'direct') return { mode: 'direct' };
+  const host = String(p.host || '127.0.0.1').trim(), port = String(p.port || '').trim();
+  if (!port) return { mode: 'system' };
+  const scheme = p.type === 'http' ? 'http' : p.type === 'socks4' ? 'socks4' : 'socks5';
+  // локальный сервер Grain (127.0.0.1:43117) через прокси не пускаем
+  return { mode: 'fixed_servers', proxyRules: `${scheme}://${host}:${port}`, proxyBypassRules: '<local>;127.0.0.1;localhost;[::1]' };
+}
+async function applyProxy() {
+  const cfg = proxyConfig(prefs.proxy);
+  try {
+    await session.defaultSession.setProxy(cfg);
+    await session.defaultSession.closeAllConnections();
+  } catch (e) { console.warn('proxy:', e && e.message); }
+}
+/** Проверка: открывается ли вход Spotify и API с текущими настройками сети. */
+async function testNetwork() {
+  const probe = async (url) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 9000);
+    const started = Date.now();
+    try {
+      const r = await session.defaultSession.fetch(url, { method: 'GET', signal: ctrl.signal, cache: 'no-store' });
+      return { ok: r.status < 500, status: r.status, ms: Date.now() - started };
+    } catch (e) {
+      return { ok: false, error: String((e && (e.cause && e.cause.message || e.message)) || e).slice(0, 160) };
+    } finally { clearTimeout(t); }
+  };
+  const [accounts, apiRes] = await Promise.all([probe('https://accounts.spotify.com/ru/login'), probe('https://api.spotify.com/v1/')]);
+  return { accounts, api: apiRes, via: proxyConfig(prefs.proxy) };
+}
+
+// ── вход в Spotify прямо в окне Grain (тот же прокси, браузер не нужен) ───
+let authWin = null;
+function openAuthWindow(url) {
+  if (authWin && !authWin.isDestroyed()) { authWin.loadURL(url); authWin.focus(); return; }
+  authWin = new BrowserWindow({
+    width: 520, height: 760, parent: win || undefined, modal: false, show: true, autoHideMenuBar: true,
+    title: 'Вход в Spotify — Grain', backgroundColor: '#121212',
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  authWin.loadURL(url);
+  const done = (u) => {
+    if (u.startsWith(ORIGIN + '/callback')) setTimeout(() => { if (authWin && !authWin.isDestroyed()) authWin.close(); }, 900);
+  };
+  authWin.webContents.on('did-navigate', (_e, u) => done(u));
+  authWin.webContents.on('did-redirect-navigation', (_e, u) => done(u));
+  authWin.webContents.setWindowOpenHandler(({ url: u }) => {
+    // всплывающие окна входа через Apple/Google/Facebook открываем тут же
+    if (/^https:\/\//.test(u)) { authWin.loadURL(u); }
+    return { action: 'deny' };
+  });
+  authWin.webContents.on('did-fail-load', (_e, code, desc, u) => {
+    if (code === -3) return; // отменённая навигация — норма
+    send('auth:neterror', { code, desc, url: u });
+  });
+  authWin.on('closed', () => { authWin = null; });
+}
 let lastThumb = null;
 
 if (!app.requestSingleInstanceLock()) { app.quit(); }
@@ -388,12 +450,16 @@ function ipc() {
       return true;
     } catch { return false; }
   });
-  ipcMain.handle('prefs:set', (_e, p) => {
+  ipcMain.handle('prefs:set', async (_e, p) => {
+    const proxyChanged = p && p.proxy && JSON.stringify(p.proxy) !== JSON.stringify(prefs.proxy);
     prefs = { ...prefs, ...p };
     writeJson(prefsPath, prefs);
     applyHotkeys();
+    if (proxyChanged) await applyProxy();
     return prefs;
   });
+  ipcMain.handle('net:test', () => testNetwork());
+  ipcMain.on('auth:open', (_e, url) => { if (/^https:\/\/accounts\.spotify\.com\//.test(url)) openAuthWindow(url); });
   ipcMain.handle('prefs:get', () => prefs);
   ipcMain.on('open-external', (_e, url) => { if (/^https:\/\//.test(url)) shell.openExternal(url); });
   ipcMain.on('win:mini', (_e, on) => setMini(!!on));
@@ -435,6 +501,7 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 app.whenReady().then(async () => {
   prefs = { ...prefs, ...readJson(prefsPath, {}) };
+  await applyProxy();
   if (components) {
     try { await components.whenReady(); } catch (e) { console.warn('Widevine:', e && e.message); }
   }
